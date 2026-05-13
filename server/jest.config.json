@@ -1,0 +1,16 @@
+{
+  "preset": "ts-jest",
+  "testEnvironment": "node",
+  "roots": ["<rootDir>/src"],
+  "testMatch": ["**/__tests__/**/*.test.ts"],
+  "moduleFileExtensions": ["ts", "js", "json"],
+  "collectCoverageFrom": [
+    "src/**/*.ts",
+    "!src/**/*.d.ts",
+    "!src/server.ts"
+  ],
+  "coverageDirectory": "coverage",
+  "globalSetup": "<rootDir>/src/__tests__/setup/globalSetup.ts",
+  "globalTeardown": "<rootDir>/src/__tests__/setup/globalTeardown.ts",
+  "testTimeout": 15000
+}

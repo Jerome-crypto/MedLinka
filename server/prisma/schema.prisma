@@ -1,0 +1,199 @@
+// This is your Prisma schema file
+// Learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────
+
+enum Role {
+  citizen
+  driver
+  hospital_admin
+  admin
+}
+
+enum AmbulanceStatus {
+  available
+  dispatched
+  offline
+  maintenance
+}
+
+enum RequestStatus {
+  pending
+  dispatched
+  in_progress
+  arrived
+  completed
+  cancelled
+}
+
+enum NotificationChannel {
+  push
+  sms
+  websocket
+  email
+}
+
+// ─────────────────────────────────────────────
+// MODELS
+// ─────────────────────────────────────────────
+
+model User {
+  id            String   @id @default(uuid())
+  name          String
+  phone         String   @unique
+  email         String?  @unique
+  passwordHash  String   @map("password_hash")
+  role          Role     @default(citizen)
+  isActive             Boolean   @default(true)  @map("is_active")
+  refreshToken         String?   @map("refresh_token")
+  passwordResetToken   String?   @map("password_reset_token")
+  passwordResetExpiry  DateTime? @map("password_reset_expiry")
+
+  // Relations
+  emergencies   EmergencyRequest[] @relation("CitizenRequests")
+  ambulance     Ambulance?         @relation("DriverAmbulance")
+  notifications Notification[]
+  auditLogs     AuditLog[]         @relation("ActorLogs")
+
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt      @map("updated_at")
+
+  @@map("users")
+}
+
+model Hospital {
+  id         String  @id @default(uuid())
+  name       String
+  address    String
+  lat        Float
+  lng        Float
+  phone      String
+  capacity   Int     @default(50)
+  isActive   Boolean @default(true) @map("is_active")
+
+  ambulances Ambulance[]
+  requests   EmergencyRequest[]
+
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt      @map("updated_at")
+
+  @@map("hospitals")
+}
+
+model Ambulance {
+  id          String          @id @default(uuid())
+  plateNumber String          @unique @map("plate_number")
+  status      AmbulanceStatus @default(available)
+  lat         Float?
+  lng         Float?
+
+  // Relations
+  driver      User?      @relation("DriverAmbulance", fields: [driverId], references: [id])
+  driverId    String?    @unique @map("driver_id")
+  hospital    Hospital   @relation(fields: [hospitalId], references: [id])
+  hospitalId  String     @map("hospital_id")
+  requests    EmergencyRequest[]
+  locationLogs LocationLog[]
+
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt      @map("updated_at")
+
+  @@map("ambulances")
+}
+
+model EmergencyRequest {
+  id              String        @id @default(uuid())
+  status          RequestStatus @default(pending)
+
+  // Pickup
+  pickupLat       Float         @map("pickup_lat")
+  pickupLng       Float         @map("pickup_lng")
+  pickupAddress   String?       @map("pickup_address")
+
+  // Patient info
+  patientName     String?       @map("patient_name")
+  patientAge      Int?          @map("patient_age")
+  medicalNotes    String?       @map("medical_notes")
+
+  // ETA
+  estimatedEta    Int?          @map("estimated_eta") // seconds
+
+  // Relations
+  citizen         User      @relation("CitizenRequests", fields: [citizenId], references: [id])
+  citizenId       String    @map("citizen_id")
+  ambulance       Ambulance? @relation(fields: [ambulanceId], references: [id])
+  ambulanceId     String?   @map("ambulance_id")
+  hospital        Hospital? @relation(fields: [hospitalId], references: [id])
+  hospitalId      String?   @map("hospital_id")
+
+  locationLogs    LocationLog[]
+  notifications   Notification[]
+
+  // Timestamps
+  requestedAt     DateTime  @default(now()) @map("requested_at")
+  dispatchedAt    DateTime? @map("dispatched_at")
+  arrivedAt       DateTime? @map("arrived_at")
+  completedAt     DateTime? @map("completed_at")
+  acknowledgedAt  DateTime? @map("acknowledged_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt      @map("updated_at")
+
+  @@map("emergency_requests")
+}
+
+model LocationLog {
+  id           String   @id @default(uuid())
+  lat          Float
+  lng          Float
+  recordedAt   DateTime @default(now()) @map("recorded_at")
+
+  ambulance    Ambulance        @relation(fields: [ambulanceId], references: [id])
+  ambulanceId  String           @map("ambulance_id")
+  request      EmergencyRequest? @relation(fields: [requestId], references: [id])
+  requestId    String?          @map("request_id")
+
+  @@map("location_logs")
+}
+
+model Notification {
+  id        String              @id @default(uuid())
+  type      String
+  message   String
+  channel   NotificationChannel @default(websocket)
+  isRead    Boolean             @default(false) @map("is_read")
+  sentAt    DateTime            @default(now()) @map("sent_at")
+
+  user      User             @relation(fields: [userId], references: [id])
+  userId    String           @map("user_id")
+  request   EmergencyRequest? @relation(fields: [requestId], references: [id])
+  requestId String?          @map("request_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("notifications")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  action    String
+  entity    String
+  entityId  String?  @map("entity_id")
+  payload   Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  actor     User   @relation("ActorLogs", fields: [actorId], references: [id])
+  actorId   String @map("actor_id")
+
+  @@map("audit_logs")
+}

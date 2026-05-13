@@ -1,0 +1,56 @@
+version: '3.9'
+
+services:
+  # ── PostgreSQL Database ────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: medlinka_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: medlinka
+    ports:
+      - '5432:5432'
+    volumes:
+      - medlinka_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── API Server ─────────────────────────────────────────────────────
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: medlinka_server
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://postgres:admin@postgres:5432/medlinka
+      NODE_ENV: production
+      PORT: 5000
+      JWT_SECRET: ${JWT_SECRET:-change_in_production_please}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-change_refresh_in_production}
+      CLIENT_URL: http://localhost:5173
+    ports:
+      - '5000:5000'
+
+  # ── React PWA Client ───────────────────────────────────────────────
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: medlinka_client
+    restart: unless-stopped
+    depends_on:
+      - server
+    ports:
+      - '5173:80'
+
+volumes:
+  medlinka_pgdata:
