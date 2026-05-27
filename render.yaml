@@ -2,7 +2,7 @@ services:
   # 1. Backend Express Web Service
   - type: web
     name: medlinka-server
-    env: node
+    runtime: node
     plan: free
     rootDir: server
     buildCommand: npm install --include=dev && npx prisma generate && npx prisma migrate deploy && npm run build
@@ -26,11 +26,11 @@ services:
   # 2. Frontend Vite React Static Site
   - type: web
     name: medlinka-client
-    env: static
+    runtime: static
     plan: free
     rootDir: client
     buildCommand: npm install && npm run build
-    publishDir: dist
+    staticPublishPath: dist
     envVars:
       - key: VITE_API_URL
         fromRoute:
