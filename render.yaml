@@ -3,7 +3,7 @@ services:
   - type: web
     name: medlinka-server
     runtime: node
-    plan: Free
+    plan: free
     rootDir: server
     buildCommand: npm install --include=dev && npx prisma generate && npx prisma migrate deploy && npm run build
     startCommand: npm start
@@ -25,7 +25,6 @@ services:
   - type: web
     name: medlinka-client
     runtime: static
-    plan: Free
     rootDir: client
     buildCommand: npm install && npm run build
     staticPublishPath: dist
@@ -43,4 +42,4 @@ services:
 # 3. PostgreSQL Database Instance
 databases:
   - name: medlinka-db
-    plan: Free
+    plan: free
