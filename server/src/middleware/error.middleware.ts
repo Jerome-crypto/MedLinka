@@ -31,7 +31,7 @@ export const errorHandler = (
   logger.error(`Unhandled error: ${err.message}`, { stack: err.stack });
   res.status(500).json({
     success: false,
-    message: `Internal server error: ${err.message}`,
-    stack: err.stack,
+    message: 'Internal server error',
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
   });
 };
