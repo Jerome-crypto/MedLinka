@@ -4,15 +4,49 @@ import { prisma } from '../../config/database';
 import { config } from '../../config/env';
 import { AppError } from '../../utils/AppError';
 import { Role } from '@prisma/client';
-import logger from '../../config/logger';
+import { logger } from '../../config/logger';
+import { EmailService } from '../../utils/email.service';
 
-interface RegisterDto { name: string; phone: string; email?: string; password: string; role?: Role; }
-interface LoginDto    { phone: string; password: string; }
+interface RegisterDto {
+  name: string;
+  email: string;
+  phone?: string;
+  password: string;
+  role?: Role;
+  providerId?: string;
+  hospitalId?: string;
+}
 
-const signAccess   = (payload: { id: string; role: string; phone: string }) =>
+interface LoginDto {
+  email: string;
+  password: string;
+}
+
+const signAccess = (payload: { id: string; role: string; email: string; hospitalId?: string | null; providerId?: string | null }) =>
   jwt.sign(payload, config.jwt.secret, { expiresIn: config.jwt.expiresIn } as jwt.SignOptions);
-const signRefresh  = (id: string) =>
+
+const signRefresh = (id: string) =>
   jwt.sign({ id }, config.jwt.refreshSecret, { expiresIn: config.jwt.refreshExpiresIn } as jwt.SignOptions);
+
+/** Look up the assigned hospital for a hospital_admin directly from User model */
+async function resolveHospitalId(userId: string, role: string): Promise<string | null> {
+  if (role !== 'hospital_admin') return null;
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { hospitalId: true },
+  });
+  return user?.hospitalId ?? null;
+}
+
+/** Look up the providerId for a provider_manager directly from User model */
+async function resolveProviderId(userId: string, role: string): Promise<string | null> {
+  if (role !== 'provider_manager' && role !== 'driver') return null;
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { providerId: true },
+  });
+  return user?.providerId ?? null;
+}
 
 function generateOtp(): string {
   return String(Math.floor(100000 + Math.random() * 900000));
@@ -20,35 +54,66 @@ function generateOtp(): string {
 
 export const AuthService = {
   async register(dto: RegisterDto) {
-    const existing = await prisma.user.findUnique({ where: { phone: dto.phone } });
-    if (existing) throw new AppError('Phone number already registered', 409);
+    const existing = await prisma.user.findUnique({ where: { email: dto.email } });
+    if (existing) throw new AppError('Email address already registered', 409);
+
+    if (dto.phone) {
+      const existingPhone = await prisma.user.findFirst({ where: { phone: dto.phone } });
+      if (existingPhone) throw new AppError('Phone number already registered', 409);
+    }
 
     const passwordHash = await bcrypt.hash(dto.password, 12);
     const user = await prisma.user.create({
-      data: { name: dto.name, phone: dto.phone, email: dto.email, passwordHash, role: dto.role ?? 'citizen' },
-      select: { id: true, name: true, phone: true, email: true, role: true, createdAt: true },
+      data: {
+        name: dto.name,
+        email: dto.email,
+        phone: dto.phone || null,
+        passwordHash,
+        role: dto.role ?? 'citizen',
+        providerId: dto.providerId || null,
+        hospitalId: dto.hospitalId || null,
+      },
+      select: { id: true, name: true, phone: true, email: true, role: true, providerId: true, hospitalId: true, createdAt: true },
     });
 
-    const accessToken  = signAccess({ id: user.id, role: user.role, phone: user.phone });
+    const hospitalId = user.hospitalId;
+    const providerId = user.providerId;
+    const accessToken = signAccess({ id: user.id, role: user.role, email: user.email, hospitalId, providerId });
     const refreshToken = signRefresh(user.id);
     await prisma.user.update({ where: { id: user.id }, data: { refreshToken } });
+
+    // Send onboarding/welcome verification email
+    const otp = generateOtp();
+    const expiry = new Date(Date.now() + 10 * 60 * 1000);
+    const hash = await bcrypt.hash(otp, 10);
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { passwordResetToken: hash, passwordResetExpiry: expiry },
+    });
+
+    // Fire email in background
+    EmailService.sendVerificationEmail(user.email, otp).catch(err => {
+      logger.error(`Failed to send registration email to ${user.email}:`, err);
+    });
 
     return { user, accessToken, refreshToken };
   },
 
   async login(dto: LoginDto) {
-    const user = await prisma.user.findUnique({ where: { phone: dto.phone } });
+    const user = await prisma.user.findUnique({ where: { email: dto.email } });
     if (!user || !user.isActive) throw new AppError('Invalid credentials', 401);
 
     const valid = await bcrypt.compare(dto.password, user.passwordHash);
     if (!valid) throw new AppError('Invalid credentials', 401);
 
-    const accessToken  = signAccess({ id: user.id, role: user.role, phone: user.phone });
+    const hospitalId = await resolveHospitalId(user.id, user.role);
+    const providerId = await resolveProviderId(user.id, user.role);
+    const accessToken = signAccess({ id: user.id, role: user.role, email: user.email, hospitalId, providerId });
     const refreshToken = signRefresh(user.id);
     await prisma.user.update({ where: { id: user.id }, data: { refreshToken } });
 
     return {
-      user: { id: user.id, name: user.name, phone: user.phone, email: user.email, role: user.role },
+      user: { id: user.id, name: user.name, phone: user.phone, email: user.email, role: user.role, hospitalId, providerId },
       accessToken,
       refreshToken,
     };
@@ -56,14 +121,19 @@ export const AuthService = {
 
   async refresh(token: string) {
     let payload: { id: string };
-    try { payload = jwt.verify(token, config.jwt.refreshSecret) as { id: string }; }
-    catch { throw new AppError('Invalid refresh token', 401); }
+    try {
+      payload = jwt.verify(token, config.jwt.refreshSecret) as { id: string };
+    } catch {
+      throw new AppError('Invalid refresh token', 401);
+    }
 
     const user = await prisma.user.findUnique({ where: { id: payload.id } });
     if (!user || user.refreshToken !== token) throw new AppError('Refresh token revoked', 401);
 
-    const accessToken  = signAccess({ id: user.id, role: user.role, phone: user.phone });
-    const newRefresh   = signRefresh(user.id);
+    const hospitalId = await resolveHospitalId(user.id, user.role);
+    const providerId = await resolveProviderId(user.id, user.role);
+    const accessToken = signAccess({ id: user.id, role: user.role, email: user.email, hospitalId, providerId });
+    const newRefresh = signRefresh(user.id);
     await prisma.user.update({ where: { id: user.id }, data: { refreshToken: newRefresh } });
 
     return { accessToken, refreshToken: newRefresh };
@@ -72,7 +142,7 @@ export const AuthService = {
   async getMe(userId: string) {
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, name: true, phone: true, email: true, role: true, createdAt: true },
+      select: { id: true, name: true, phone: true, email: true, role: true, providerId: true, hospitalId: true, createdAt: true },
     });
     if (!user) throw new AppError('User not found', 404);
     return user;
@@ -84,29 +154,28 @@ export const AuthService = {
 
   // ── OTP / Password Reset ──────────────────────────────────────────
 
-  async forgotPassword(phone: string) {
-    const user = await prisma.user.findUnique({ where: { phone } });
-    // Don't reveal whether the phone exists — always return success
-    if (!user) return { message: 'If that number is registered, a code has been sent.' };
+  async forgotPassword(email: string) {
+    const user = await prisma.user.findUnique({ where: { email } });
+    // Don't reveal details, always say "If registered..."
+    if (!user) return { message: 'If that email is registered, a code has been sent.' };
 
-    const otp    = generateOtp();
+    const otp = generateOtp();
     const expiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-    const hash   = await bcrypt.hash(otp, 10);
+    const hash = await bcrypt.hash(otp, 10);
 
     await prisma.user.update({
       where: { id: user.id },
-      data:  { passwordResetToken: hash, passwordResetExpiry: expiry },
+      data: { passwordResetToken: hash, passwordResetExpiry: expiry },
     });
 
-    // In production: send via SMS (Twilio / Africa's Talking)
-    // For now we log it clearly for testing
-    logger.info(`[OTP] Reset code for ${phone}: ${otp} (expires ${expiry.toISOString()})`);
+    // Send email using SMTP
+    await EmailService.sendPasswordResetEmail(email, otp);
 
-    return { message: 'If that number is registered, a code has been sent.' };
+    return { message: 'If that email is registered, a code has been sent.' };
   },
 
-  async verifyOtp(phone: string, otp: string) {
-    const user = await prisma.user.findUnique({ where: { phone } });
+  async verifyOtp(email: string, otp: string) {
+    const user = await prisma.user.findUnique({ where: { email } });
     if (!user || !user.passwordResetToken || !user.passwordResetExpiry) {
       throw new AppError('Invalid or expired verification code', 400);
     }
@@ -119,11 +188,11 @@ export const AuthService = {
     return { valid: true };
   },
 
-  async resetPassword(phone: string, otp: string, newPassword: string) {
+  async resetPassword(email: string, otp: string, newPassword: string) {
     // Re-verify OTP before resetting
-    await AuthService.verifyOtp(phone, otp);
+    await AuthService.verifyOtp(email, otp);
 
-    const user = await prisma.user.findUnique({ where: { phone } });
+    const user = await prisma.user.findUnique({ where: { email } });
     if (!user) throw new AppError('User not found', 404);
 
     const passwordHash = await bcrypt.hash(newPassword, 12);

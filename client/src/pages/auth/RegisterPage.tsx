@@ -1,4 +1,4 @@
-import { useState, FormEvent } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { AmbulanceIcon, PhoneIcon, UserIcon, AlertTriangleIcon, LocationPinIcon } from '../../components/common/Icons';
@@ -48,7 +48,7 @@ export default function RegisterPage() {
   const nextStep = () => {
     setLocalError('');
     if (step === 1) {
-      if (!form.name || !form.phone || !form.password) { setLocalError('Please fill all required fields.'); return; }
+      if (!form.name || !form.email || !form.password) { setLocalError('Please fill all required fields.'); return; }
       if (form.password !== form.confirm) { setLocalError('Passwords do not match.'); return; }
       if (form.password.length < 6) { setLocalError('Password must be at least 6 characters.'); return; }
     }
@@ -59,7 +59,13 @@ export default function RegisterPage() {
     clearError(); setLocalError('');
     if (otp.length !== 6) { setLocalError('Please enter the 6-digit verification code.'); return; }
     try {
-      await register({ name: form.name, phone: form.phone, email: form.email || undefined, password: form.password, role: 'citizen' });
+      await register({
+        name: form.name,
+        email: form.email,
+        phone: form.phone || undefined,
+        password: form.password,
+        role: 'citizen'
+      });
       setRegistered(true);
       setTimeout(() => navigate('/'), 2000);
     } catch { /* shown via store */ }
@@ -119,19 +125,19 @@ export default function RegisterPage() {
                   </div>
                 </div>
                 <div className="form-group">
-                  <label className="form-label" htmlFor="reg-phone">Phone Number *</label>
-                  <div className="input-wrapper">
-                    <span className="input-icon"><PhoneIcon size={16} /></span>
-                    <input id="reg-phone" className="form-input" type="tel" placeholder="+256700000000"
-                      value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} required />
-                  </div>
-                </div>
-                <div className="form-group">
-                  <label className="form-label" htmlFor="reg-email">Email <span style={{ color: 'var(--text-3)', fontWeight: 400 }}>(optional)</span></label>
+                  <label className="form-label" htmlFor="reg-email">Email Address *</label>
                   <div className="input-wrapper">
                     <span className="input-icon"><MailIcon /></span>
                     <input id="reg-email" className="form-input" type="email" placeholder="alice@example.com"
-                      value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
+                      value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} required />
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label className="form-label" htmlFor="reg-phone">Phone Number <span style={{ color: 'var(--text-3)', fontWeight: 400 }}>(optional)</span></label>
+                  <div className="input-wrapper">
+                    <span className="input-icon"><PhoneIcon size={16} /></span>
+                    <input id="reg-phone" className="form-input" type="tel" placeholder="+256700000000"
+                      value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} />
                   </div>
                 </div>
                 <div className="form-group">
@@ -234,7 +240,7 @@ export default function RegisterPage() {
             {step === 4 && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                 <h2 style={{ marginBottom: 4 }}>Verify & Complete</h2>
-                <p style={{ fontSize: '0.875rem' }}>A 6-digit code was sent to <strong style={{ color: 'var(--primary-light)' }}>{form.phone}</strong>.
+                <p style={{ fontSize: '0.875rem' }}>A 6-digit verification code has been sent to your email <strong style={{ color: 'var(--primary-light)' }}>{form.email}</strong>.
                   <br /><span style={{ color: 'var(--text-3)', fontSize: '0.8rem' }}>(Demo: enter any 6 digits)</span>
                 </p>
                 <div className="form-group">

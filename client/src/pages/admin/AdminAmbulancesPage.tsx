@@ -48,7 +48,7 @@ export default function AdminAmbulancesPage() {
   };
 
   return (
-    <div className="page" style={{ background: 'radial-gradient(ellipse at top,#061228 0%,var(--bg) 55%)' }}>
+    <div className="page">
       <div className="navbar">
         <button onClick={() => navigate('/admin/dashboard')} className="btn btn--ghost btn--sm btn--icon">
           <ArrowLeftIcon size={18} />

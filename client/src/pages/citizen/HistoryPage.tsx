@@ -23,7 +23,7 @@ export default function HistoryPage() {
   useEffect(() => { fetchList(); }, [fetchList]);
 
   return (
-    <div className="page" style={{ background: 'radial-gradient(ellipse at top,#071020 0%,var(--bg) 55%)' }}>
+    <div className="page">
       <div className="navbar">
         <div className="navbar__logo">
           <div className="navbar__logo-mark"><ClockIcon size={18} /></div>

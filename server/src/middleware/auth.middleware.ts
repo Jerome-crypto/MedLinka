@@ -8,7 +8,9 @@ export interface AuthRequest extends Request {
   user?: {
     id: string;
     role: string;
-    phone: string;
+    phone: string | null;
+    hospitalId?: string | null;
+    providerId?: string | null;
   };
 }
 
@@ -30,7 +32,9 @@ export const authenticate = async (
     const payload = jwt.verify(token, config.jwt.secret) as {
       id: string;
       role: string;
-      phone: string;
+      phone?: string | null;
+      hospitalId?: string | null;
+      providerId?: string | null;
     };
 
     // Verify user still exists and is active
@@ -43,7 +47,13 @@ export const authenticate = async (
       throw new AppError('User not found or deactivated', 401);
     }
 
-    req.user = { id: user.id, role: user.role, phone: user.phone };
+    req.user = {
+      id: user.id,
+      role: user.role,
+      phone: user.phone,
+      hospitalId: payload.hospitalId,
+      providerId: payload.providerId,
+    };
     next();
   } catch (err) {
     if (err instanceof jwt.JsonWebTokenError) {

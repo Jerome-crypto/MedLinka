@@ -4,13 +4,13 @@ type Theme = 'dark' | 'light';
 
 export function useTheme() {
   const [theme, setTheme] = useState<Theme>(() => {
-    return (localStorage.getItem('medlinka-theme') as Theme) || 'dark';
+    return (localStorage.getItem('medlinka-theme') as Theme) || 'light';
   });
 
   useEffect(() => {
     const html = document.documentElement;
-    if (theme === 'light') {
-      html.setAttribute('data-theme', 'light');
+    if (theme === 'dark') {
+      html.setAttribute('data-theme', 'dark');
     } else {
       html.removeAttribute('data-theme');
     }

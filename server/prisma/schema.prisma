@@ -18,7 +18,15 @@ enum Role {
   citizen
   driver
   hospital_admin
+  provider_manager
   admin
+}
+
+enum ProviderType {
+  hospital
+  private
+  ngo
+  government
 }
 
 enum AmbulanceStatus {
@@ -51,8 +59,8 @@ enum NotificationChannel {
 model User {
   id            String   @id @default(uuid())
   name          String
-  phone         String   @unique
-  email         String?  @unique
+  phone         String?  @unique
+  email         String   @unique
   passwordHash  String   @map("password_hash")
   role          Role     @default(citizen)
   isActive             Boolean   @default(true)  @map("is_active")
@@ -61,6 +69,10 @@ model User {
   passwordResetExpiry  DateTime? @map("password_reset_expiry")
 
   // Relations
+  provider      Provider?          @relation(fields: [providerId], references: [id])
+  providerId    String?            @map("provider_id")
+  hospital      Hospital?          @relation(fields: [hospitalId], references: [id])
+  hospitalId    String?            @map("hospital_id")
   emergencies   EmergencyRequest[] @relation("CitizenRequests")
   ambulance     Ambulance?         @relation("DriverAmbulance")
   notifications Notification[]
@@ -84,6 +96,7 @@ model Hospital {
 
   ambulances Ambulance[]
   requests   EmergencyRequest[]
+  users      User[]
 
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt      @map("updated_at")
@@ -98,12 +111,18 @@ model Ambulance {
   lat         Float?
   lng         Float?
 
+  // Capabilities
+  ambulanceType  String?         @map("ambulance_type")
+  equipmentLevel Int             @default(1) @map("equipment_level")
+
   // Relations
-  driver      User?      @relation("DriverAmbulance", fields: [driverId], references: [id])
-  driverId    String?    @unique @map("driver_id")
-  hospital    Hospital   @relation(fields: [hospitalId], references: [id])
-  hospitalId  String     @map("hospital_id")
-  requests    EmergencyRequest[]
+  provider          Provider   @relation(fields: [providerId], references: [id])
+  providerId        String     @map("provider_id")
+  driver            User?      @relation("DriverAmbulance", fields: [driverId], references: [id])
+  driverId          String?    @unique @map("driver_id")
+  assignedHospital  Hospital?  @relation(fields: [assignedHospitalId], references: [id])
+  assignedHospitalId String?   @map("assigned_hospital_id")
+  requests          EmergencyRequest[]
   locationLogs LocationLog[]
 
   createdAt   DateTime @default(now()) @map("created_at")
@@ -196,4 +215,46 @@ model AuditLog {
   actorId   String @map("actor_id")
 
   @@map("audit_logs")
+}
+
+// ─────────────────────────────────────────────
+// NEW MODELS (MULTI-PROVIDER)
+// ─────────────────────────────────────────────
+
+model Provider {
+  id              String        @id @default(uuid())
+  name            String
+  type            ProviderType
+  contactEmail    String?       @map("contact_email")
+  contactPhone    String?       @map("contact_phone")
+  operatingStatus Boolean       @default(true) @map("operating_status")
+  address         String?
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt      @map("updated_at")
+
+  ambulances      Ambulance[]
+  users           User[]
+  coverageZones   ProviderCoverageZone[]
+
+  @@map("providers")
+}
+
+model ProviderCoverageZone {
+  id             String   @id @default(uuid())
+  provider       Provider @relation(fields: [providerId], references: [id])
+  providerId     String   @map("provider_id")
+  geojsonPolygon Json?    @map("geojson_polygon")
+  priorityRegion Boolean  @default(false) @map("priority_region")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@map("provider_coverage_zones")
+}
+
+model EmergencyType {
+  id                     String   @id @default(uuid())
+  name                   String   @unique
+  requiredEquipmentLevel Int      @default(1) @map("required_equipment_level")
+  createdAt              DateTime @default(now()) @map("created_at")
+
+  @@map("emergency_types")
 }

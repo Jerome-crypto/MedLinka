@@ -1,11 +1,50 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import {
+  UserIcon, AmbulanceIcon, HospitalIcon, ShieldCrossIcon, CheckCircleIcon,
+} from '../../components/common/Icons';
 
 const ROLES = [
-  { id: 'citizen',        emoji: '🧑', name: 'Citizen / Patient', desc: 'Request emergency ambulance help', color: 'var(--green-light)',   bg: 'rgba(56,142,60,0.15)'    },
-  { id: 'driver',         emoji: '🚑', name: 'Ambulance Driver',  desc: 'Respond to emergency dispatches', color: 'var(--primary-light)', bg: 'rgba(21,101,192,0.15)'   },
-  { id: 'hospital_admin', emoji: '🏥', name: 'Hospital Staff',    desc: 'Manage incoming patients & ER',   color: 'var(--teal-light)',    bg: 'rgba(0,137,123,0.15)'    },
-  { id: 'admin',          emoji: '🛡️', name: 'Administrator',     desc: 'System-wide oversight & reports', color: 'var(--amber-light)',   bg: 'rgba(245,124,0,0.15)'    },
+  {
+    id: 'citizen',
+    Icon: UserIcon,
+    name: 'Citizen / Patient',
+    desc: 'Request emergency ambulance help',
+    color: 'var(--green)',
+    bg: 'rgba(67,160,71,0.1)',
+  },
+  {
+    id: 'driver',
+    Icon: AmbulanceIcon,
+    name: 'Ambulance Driver',
+    desc: 'Respond to emergency dispatches',
+    color: 'var(--primary)',
+    bg: 'rgba(25,118,210,0.1)',
+  },
+  {
+    id: 'hospital_admin',
+    Icon: HospitalIcon,
+    name: 'Hospital Staff',
+    desc: 'Manage incoming patients & ER',
+    color: 'var(--teal)',
+    bg: 'rgba(0,137,123,0.1)',
+  },
+  {
+    id: 'provider_manager',
+    Icon: ShieldCrossIcon, // Or a Fleet icon
+    name: 'Provider Manager',
+    desc: 'Manage ambulance fleet & drivers',
+    color: 'var(--blue)',
+    bg: 'rgba(33,150,243,0.1)',
+  },
+  {
+    id: 'admin',
+    Icon: ShieldCrossIcon,
+    name: 'Administrator',
+    desc: 'System-wide oversight & reports',
+    color: 'var(--amber)',
+    bg: 'rgba(251,140,0,0.1)',
+  },
 ];
 
 export default function RoleSelectPage() {
@@ -30,19 +69,26 @@ export default function RoleSelectPage() {
             id={`role-${r.id}`}
             className={`role-card${selected === r.id ? ' role-card--selected' : ''}`}
             onClick={() => setSelected(r.id)}
+            style={{ position: 'relative' }}
           >
-            <div className="role-card__icon" style={{ background: r.bg }}>
-              <span>{r.emoji}</span>
+            <div
+              className="role-card__icon"
+              style={{
+                background: selected === r.id ? r.color : r.bg,
+                color: selected === r.id ? '#fff' : r.color,
+              }}
+            >
+              <r.Icon size={28} />
             </div>
             <div className="role-card__name">{r.name}</div>
             <div className="role-card__desc">{r.desc}</div>
             {selected === r.id && (
               <div style={{
-                position: 'absolute', top: 10, right: 10,
-                width: 20, height: 20, borderRadius: '50%',
-                background: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: '0.65rem', color: '#fff', fontWeight: 800
-              }}>✓</div>
+                position: 'absolute', top: 8, right: 8,
+                color: 'var(--primary)',
+              }}>
+                <CheckCircleIcon size={18} />
+              </div>
             )}
           </button>
         ))}

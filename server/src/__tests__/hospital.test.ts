@@ -7,7 +7,7 @@ let adminToken: string;
 
 beforeAll(async () => {
   const res = await request(app).post('/api/auth/login').send({
-    phone: '+256700000001',
+    email: 'admin@medlinka.com',
     password: 'Admin@1234',
   });
   adminToken = res.body.data?.accessToken;

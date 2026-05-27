@@ -35,10 +35,10 @@ const EMERGENCY_TYPES = [
 ];
 
 const QUICK_ACTIONS = [
-  { id: 'medical',  emoji: '🚑', label: 'Call Ambulance',      sub: 'Medical emergency',    color: '#EF5350', glow: 'rgba(239,83,80,0.2)' },
-  { id: 'maternal', emoji: '🤱', label: 'Maternal Emergency',  sub: 'Pregnancy / birth',    color: '#AB47BC', glow: 'rgba(171,71,188,0.2)' },
-  { id: 'accident', emoji: '💥', label: 'Accident Report',     sub: 'Road / work accident', color: '#FF7043', glow: 'rgba(255,112,67,0.2)' },
-  { id: 'fire',     emoji: '🔥', label: 'Fire / Burn',         sub: 'Fire or burns',        color: '#FF8A65', glow: 'rgba(255,138,101,0.2)' },
+  { id: 'medical',  Icon: AmbulanceIcon, label: 'Call Ambulance',      sub: 'Medical emergency',    color: '#EF5350', glow: 'rgba(239,83,80,0.1)' },
+  { id: 'maternal', Icon: BabyIcon,      label: 'Maternal Emergency',  sub: 'Pregnancy / birth',    color: '#AB47BC', glow: 'rgba(171,71,188,0.1)' },
+  { id: 'accident', Icon: CarCrashIcon,  label: 'Accident Report',     sub: 'Road / work accident', color: '#FF7043', glow: 'rgba(255,112,67,0.1)' },
+  { id: 'fire',     Icon: FlameIcon,     label: 'Fire / Burn',         sub: 'Fire or burns',        color: '#FF8A65', glow: 'rgba(255,138,101,0.1)' },
 ];
 
 type Step = 'home' | 'type' | 'details' | 'confirm';
@@ -81,7 +81,7 @@ export default function SosPage() {
   // ── Success state ───────────────────────────────────────────────
   if (triggered) {
     return (
-      <div className="page" style={{ background: 'radial-gradient(ellipse at top,#0a1020 0%,var(--bg) 55%)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 24 }}>
+      <div className="page" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 24 }}>
         <div className="card card--crimson animate-bounce-in" style={{ textAlign: 'center', padding: '40px 24px', maxWidth: 360, margin: '0 16px' }}>
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16, color: 'var(--crimson-light)' }}>
             <AmbulanceIcon size={52} />
@@ -97,7 +97,7 @@ export default function SosPage() {
   }
 
   return (
-    <div className="page" style={{ background: 'radial-gradient(ellipse at top,#0a1020 0%,var(--bg) 55%)' }}>
+    <div className="page">
       {/* Navbar */}
       <div className="navbar">
         <div className="navbar__logo">
@@ -164,8 +164,8 @@ export default function SosPage() {
                     onClick={() => startEmergency(qa.id)}
                     id={`quick-action-${qa.id}`}
                   >
-                    <div className="quick-action-card__icon" style={{ background: qa.glow }}>
-                      <span>{qa.emoji}</span>
+                    <div className="quick-action-card__icon" style={{ background: qa.glow, color: qa.color }}>
+                      <qa.Icon size={24} />
                     </div>
                     <div className="quick-action-card__label">{qa.label}</div>
                     <div className="quick-action-card__sub">{qa.sub}</div>

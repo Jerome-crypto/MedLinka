@@ -13,7 +13,6 @@ import OfflineBanner from './components/common/OfflineBanner';
 import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
 import OnboardingPage from './pages/auth/OnboardingPage';
-import RoleSelectPage from './pages/auth/RoleSelectPage';
 import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
 
 // Citizen
@@ -31,9 +30,13 @@ import DriverNavigationPage from './pages/driver/DriverNavigationPage';
 import HospitalIncomingPage from './pages/hospital/HospitalIncomingPage';
 import HospitalPatientPage from './pages/hospital/HospitalPatientPage';
 
+// Provider
+import ProviderDashboardPage from './pages/provider/ProviderDashboardPage';
+
 // Admin
 import AdminDashboardPage from './pages/admin/AdminDashboardPage';
 import AdminAmbulancesPage from './pages/admin/AdminAmbulancesPage';
+import AdminProvidersPage from './pages/admin/AdminProvidersPage';
 import AdminReportsPage from './pages/admin/AdminReportsPage';
 import AdminUsersPage from './pages/admin/AdminUsersPage';
 
@@ -45,6 +48,21 @@ const RequireAuth = ({ children, roles }: { children: JSX.Element; roles?: Role[
   return children;
 };
 
+const RequireGuest = ({ children }: { children: JSX.Element }) => {
+  const { user } = useAuthStore();
+  if (user) {
+    const redirects: Record<Role, string> = {
+      citizen:        '/sos',
+      driver:         '/driver/requests',
+      hospital_admin: '/hospital/incoming',
+      provider_manager: '/provider/dashboard',
+      admin:          '/admin/dashboard',
+    };
+    return <Navigate to={redirects[user.role]} replace />;
+  }
+  return children;
+};
+
 const HomeRedirect = () => {
   const { user } = useAuthStore();
   if (!user) return <Navigate to="/login" replace />;
@@ -52,6 +70,7 @@ const HomeRedirect = () => {
     citizen:        '/sos',
     driver:         '/driver/requests',
     hospital_admin: '/hospital/incoming',
+    provider_manager: '/provider/dashboard',
     admin:          '/admin/dashboard',
   };
   return <Navigate to={redirects[user.role]} replace />;
@@ -83,11 +102,10 @@ export default function App() {
 
         <Routes>
           {/* Public / Onboarding */}
-          <Route path="/onboarding"      element={<OnboardingPage />} />
-          <Route path="/role-select"     element={<RoleSelectPage />} />
-          <Route path="/login"           element={<LoginPage />} />
-          <Route path="/register"        element={<RegisterPage />} />
-          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/onboarding"      element={<RequireGuest><OnboardingPage /></RequireGuest>} />
+          <Route path="/login"           element={<RequireGuest><LoginPage /></RequireGuest>} />
+          <Route path="/register"        element={<RequireGuest><RegisterPage /></RequireGuest>} />
+          <Route path="/forgot-password" element={<RequireGuest><ForgotPasswordPage /></RequireGuest>} />
 
           {/* Root redirect */}
           <Route path="/" element={<HomeRedirect />} />
@@ -107,9 +125,13 @@ export default function App() {
           <Route path="/hospital/incoming"    element={<RequireAuth roles={['hospital_admin']}><HospitalIncomingPage /></RequireAuth>} />
           <Route path="/hospital/patient/:id" element={<RequireAuth roles={['hospital_admin']}><HospitalPatientPage /></RequireAuth>} />
 
+          {/* ── Provider ─────────────────────────────────── */}
+          <Route path="/provider/dashboard"    element={<RequireAuth roles={['provider_manager']}><ProviderDashboardPage /></RequireAuth>} />
+
           {/* ── Admin ────────────────────────────────────── */}
           <Route path="/admin/dashboard"  element={<RequireAuth roles={['admin']}><AdminDashboardPage /></RequireAuth>} />
           <Route path="/admin/ambulances" element={<RequireAuth roles={['admin']}><AdminAmbulancesPage /></RequireAuth>} />
+          <Route path="/admin/providers"  element={<RequireAuth roles={['admin']}><AdminProvidersPage /></RequireAuth>} />
           <Route path="/admin/reports"    element={<RequireAuth roles={['admin']}><AdminReportsPage /></RequireAuth>} />
           <Route path="/admin/users"      element={<RequireAuth roles={['admin']}><AdminUsersPage /></RequireAuth>} />
 

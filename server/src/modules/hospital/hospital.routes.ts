@@ -19,8 +19,18 @@ const createHospitalSchema = z.object({
 });
 
 router.get('/', HospitalController.list);
+router.get('/mine', authorize('hospital_admin', 'admin'), HospitalController.mine);
 router.get('/:id', HospitalController.getById);
 router.get('/:id/incoming', authorize('hospital_admin', 'admin'), HospitalController.incoming);
+
+const createHospitalAdminSchema = z.object({
+  body: z.object({
+    name: z.string().trim().min(1, 'Name is required'),
+    email: z.string().email('Invalid email'),
+    password: z.string().min(6, 'Password must be at least 6 characters'),
+    phone: z.string().trim().optional().or(z.literal('')),
+  }),
+});
 
 router.post(
   '/',
@@ -30,5 +40,6 @@ router.post(
 );
 
 router.patch('/:id', authorize('admin'), HospitalController.update);
+router.post('/:id/admins', authorize('admin'), validate(createHospitalAdminSchema), HospitalController.createAdmin);
 
 export default router;

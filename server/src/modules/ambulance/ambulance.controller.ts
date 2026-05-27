@@ -2,6 +2,7 @@ import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../../middleware/auth.middleware';
 import { AmbulanceService } from './ambulance.service';
 import { sendSuccess, sendCreated, sendNoContent } from '../../utils/response';
+import { AppError } from '../../utils/AppError';
 
 export const AmbulanceController = {
   async list(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
@@ -20,12 +21,24 @@ export const AmbulanceController = {
 
   async create(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     try {
+      if (req.user!.role === 'provider_manager') {
+        if (!req.user!.providerId) {
+          throw new AppError('No provider assigned to this manager account', 403);
+        }
+        req.body.providerId = req.user!.providerId;
+      }
       sendCreated(res, await AmbulanceService.create(req.body), 'Ambulance created');
     } catch (err) { next(err); }
   },
 
   async updateStatus(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     try {
+      if (req.user!.role === 'provider_manager') {
+        const amb = await AmbulanceService.getById(req.params.id);
+        if (amb.providerId !== req.user!.providerId) {
+          throw new AppError('Unauthorized access to this ambulance', 403);
+        }
+      }
       sendSuccess(res, await AmbulanceService.updateStatus(req.params.id, req.body.status));
     } catch (err) { next(err); }
   },
@@ -39,6 +52,12 @@ export const AmbulanceController = {
 
   async remove(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     try {
+      if (req.user!.role === 'provider_manager') {
+        const amb = await AmbulanceService.getById(req.params.id);
+        if (amb.providerId !== req.user!.providerId) {
+          throw new AppError('Unauthorized access to this ambulance', 403);
+        }
+      }
       await AmbulanceService.delete(req.params.id);
       sendNoContent(res);
     } catch (err) { next(err); }
@@ -47,6 +66,19 @@ export const AmbulanceController = {
   async updateMyStatus(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       sendSuccess(res, await AmbulanceService.updateMyStatus(req.user!.id, req.body.status));
+    } catch (err) { next(err); }
+  },
+
+  async assignDriver(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { driverId } = req.body;
+      if (req.user!.role === 'provider_manager') {
+        const amb = await AmbulanceService.getById(req.params.id);
+        if (amb.providerId !== req.user!.providerId) {
+          throw new AppError('Unauthorized access to this ambulance', 403);
+        }
+      }
+      sendSuccess(res, await AmbulanceService.assignDriver(req.params.id, driverId || null));
     } catch (err) { next(err); }
   },
 };

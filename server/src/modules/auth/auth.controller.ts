@@ -30,19 +30,19 @@ export const AuthController = {
   },
 
   async forgotPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
-    try { sendSuccess(res, await AuthService.forgotPassword(req.body.phone)); }
+    try { sendSuccess(res, await AuthService.forgotPassword(req.body.email)); }
     catch (err) { next(err); }
   },
 
   async verifyOtp(req: Request, res: Response, next: NextFunction): Promise<void> {
-    try { sendSuccess(res, await AuthService.verifyOtp(req.body.phone, req.body.otp)); }
+    try { sendSuccess(res, await AuthService.verifyOtp(req.body.email, req.body.otp)); }
     catch (err) { next(err); }
   },
 
   async resetPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { phone, otp, newPassword } = req.body;
-      sendSuccess(res, await AuthService.resetPassword(phone, otp, newPassword));
+      const { email, otp, newPassword } = req.body;
+      sendSuccess(res, await AuthService.resetPassword(email, otp, newPassword));
     }
     catch (err) { next(err); }
   },

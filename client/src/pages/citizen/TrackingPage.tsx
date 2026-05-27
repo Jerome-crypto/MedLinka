@@ -4,6 +4,7 @@ import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-
 import L from 'leaflet';
 import { useSosStore } from '../../store/sosStore';
 import { useSocket } from '../../hooks/useSocket';
+import { useTheme } from '../../hooks/useTheme';
 import type { SosAssignedEvent, LocationUpdateEvent, StatusUpdateEvent } from '../../types';
 import CitizenNav from '../../components/layout/CitizenNav';
 import { AmbulanceIcon, ArrowLeftIcon, ClockIcon, MapPinIcon, UserIcon, HospitalIcon, AlertTriangleIcon, CheckCircleIcon, PhoneIcon } from '../../components/common/Icons';
@@ -14,10 +15,44 @@ L.Icon.Default.mergeOptions({ iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/di
 const ambulanceIcon = L.divIcon({ className: '', html: '<div style="background:#1565C0;border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.5);border:2px solid #1E88E5"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="16" height="11" rx="1.5"/><path d="M18 12h3l1 4v2h-4"/><circle cx="6.5" cy="19.5" r="1.5"/><circle cx="15.5" cy="19.5" r="1.5"/><path d="M8 11h3m-1.5-1.5v3" stroke-width="2.5"/></svg></div>', iconSize: [36, 36], iconAnchor: [18, 18] });
 const personIcon = L.divIcon({ className: '', html: '<div style="background:#D32F2F;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.5);border:2px solid #EF5350"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg></div>', iconSize: [32, 32], iconAnchor: [16, 32] });
 
-const FlyTo = ({ lat, lng }: { lat: number; lng: number }) => {
+const FitBounds = ({ pLat, pLng, aLat, aLng }: { pLat: number; pLng: number; aLat: number; aLng: number }) => {
   const map = useMap();
-  useEffect(() => { map.flyTo([lat, lng], map.getZoom(), { duration: 1.5 }); }, [lat, lng, map]);
+  useEffect(() => {
+    if (pLat && pLng && aLat && aLng) {
+      const bounds = L.latLngBounds([[pLat, pLng], [aLat, aLng]]);
+      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16, animate: true, duration: 1.5 });
+    }
+  }, [pLat, pLng, aLat, aLng, map]);
   return null;
+};
+
+const MapControls = ({ pLat, pLng, aLat, aLng }: { pLat: number; pLng: number; aLat?: number; aLng?: number }) => {
+  const map = useMap();
+  
+  const handleZoomIn = () => map.zoomIn();
+  const handleZoomOut = () => map.zoomOut();
+  const handleRecenter = () => {
+    if (aLat && aLng) {
+      const bounds = L.latLngBounds([[pLat, pLng], [aLat, aLng]]);
+      map.fitBounds(bounds, { padding: [50, 50], animate: true, duration: 1.0 });
+    } else {
+      map.setView([pLat, pLng], 15, { animate: true });
+    }
+  };
+
+  return (
+    <div style={{ position: 'absolute', right: '12px', bottom: '12px', zIndex: 1000, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      <button onClick={handleZoomIn} style={{ width: '38px', height: '38px', borderRadius: '50%', background: 'var(--bg-3)', border: '1px solid var(--border-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--shadow-md)', cursor: 'pointer', color: 'var(--text)', fontWeight: 600, fontSize: '1.2rem' }}>
+        ＋
+      </button>
+      <button onClick={handleZoomOut} style={{ width: '38px', height: '38px', borderRadius: '50%', background: 'var(--bg-3)', border: '1px solid var(--border-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--shadow-md)', cursor: 'pointer', color: 'var(--text)', fontWeight: 600, fontSize: '1.2rem' }}>
+        －
+      </button>
+      <button onClick={handleRecenter} style={{ width: '38px', height: '38px', borderRadius: '50%', background: 'var(--bg-3)', border: '1px solid var(--border-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--shadow-md)', cursor: 'pointer', color: 'var(--text)', fontSize: '1.1rem' }} title="Recenter">
+        🎯
+      </button>
+    </div>
+  );
 };
 
 function formatEta(seconds: number) {
@@ -48,7 +83,9 @@ export default function TrackingPage() {
   const navigate = useNavigate();
   const { activeRequest, fetchActive, ambulanceLat, ambulanceLng, updateFromSocket, updateAmbulanceLocation, cancelRequest } = useSosStore();
   const { on, emit } = useSocket();
+  const { isDark } = useTheme();
   const [etaSeconds, setEtaSeconds] = useState<number | null>(null);
+  const [routePoints, setRoutePoints] = useState<[number, number][]>([]);
 
   useEffect(() => { if (id) fetchActive(id); }, [id, fetchActive]);
 
@@ -77,10 +114,35 @@ export default function TrackingPage() {
   const ambLat = ambulanceLat ?? request?.ambulance?.lat;
   const ambLng = ambulanceLng ?? request?.ambulance?.lng;
 
+  // OSRM street route builder with polyline fallback
+  useEffect(() => {
+    if (ambLat && ambLng && pickupLat && pickupLng) {
+      fetch(`https://router.project-osrm.org/route/v1/driving/${ambLng},${ambLat};${pickupLng},${pickupLat}?overview=full&geometries=geojson`)
+        .then(r => r.json())
+        .then(data => {
+          if (data.routes && data.routes[0]) {
+            const coords = data.routes[0].geometry.coordinates.map((c: any) => [c[1], c[0]] as [number, number]);
+            setRoutePoints(coords);
+          } else {
+            setRoutePoints([[ambLat, ambLng], [pickupLat, pickupLng]]);
+          }
+        })
+        .catch(() => {
+          setRoutePoints([[ambLat, ambLng], [pickupLat, pickupLng]]);
+        });
+    } else {
+      setRoutePoints([]);
+    }
+  }, [ambLat, ambLng, pickupLat, pickupLng]);
+
   const handleCancel = async () => {
     if (!id) return;
     if (confirm('Cancel this emergency request?')) { await cancelRequest(id); navigate('/sos'); }
   };
+
+  const tileUrl = isDark
+    ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+    : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
 
   return (
     <div className="page">
@@ -95,18 +157,21 @@ export default function TrackingPage() {
         <div />
       </div>
 
-      <MapContainer center={[pickupLat, pickupLng]} zoom={15}
-        style={{ height: '45dvh', width: '100%' }} zoomControl={false}>
-        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="© OpenStreetMap contributors" />
-        <Marker position={[pickupLat, pickupLng]} icon={personIcon}><Popup>Your location</Popup></Marker>
-        {ambLat && ambLng && (
-          <>
-            <Marker position={[ambLat, ambLng]} icon={ambulanceIcon}><Popup>Ambulance {request?.ambulance?.plateNumber}</Popup></Marker>
-            <Polyline positions={[[ambLat, ambLng], [pickupLat, pickupLng]]} color="var(--primary-light)" weight={3} dashArray="8,8" />
-            <FlyTo lat={ambLat} lng={ambLng} />
-          </>
-        )}
-      </MapContainer>
+      <div style={{ position: 'relative', height: '45dvh', width: '100%' }}>
+        <MapContainer center={[pickupLat, pickupLng]} zoom={15}
+          style={{ height: '100%', width: '100%' }} zoomControl={false}>
+          <TileLayer url={tileUrl} attribution="© CartoDB" />
+          <Marker position={[pickupLat, pickupLng]} icon={personIcon}><Popup>Your location</Popup></Marker>
+          {ambLat && ambLng && (
+            <>
+              <Marker position={[ambLat, ambLng]} icon={ambulanceIcon}><Popup>Ambulance {request?.ambulance?.plateNumber}</Popup></Marker>
+              <Polyline positions={routePoints.length > 0 ? routePoints : [[ambLat, ambLng], [pickupLat, pickupLng]]} color="var(--primary-light)" weight={4} dashArray="8,8" />
+              <FitBounds pLat={pickupLat} pLng={pickupLng} aLat={ambLat} aLng={ambLng} />
+            </>
+          )}
+          <MapControls pLat={pickupLat} pLng={pickupLng} aLat={ambLat} aLng={ambLng} />
+        </MapContainer>
+      </div>
 
       <div className="container" style={{ paddingTop: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
 

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { reportsApi } from '../../api/hospital.api';
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { ShieldCrossIcon, AmbulanceIcon, HospitalIcon, ClockIcon, ChartLineIcon, FleetIcon, SettingsIcon, LogOutIcon, AlertTriangleIcon, UserIcon } from '../../components/common/Icons';
+import { ShieldCrossIcon, AmbulanceIcon, HospitalIcon, ClockIcon, ChartLineIcon, FleetIcon, SettingsIcon, LogOutIcon, AlertTriangleIcon, UserIcon, ZapIcon } from '../../components/common/Icons';
 import { SkeletonStatGrid } from '../../components/common/SkeletonLoader';
 
 const PIE_COLORS = ['#66BB6A', '#FFB300', '#8FA3C0'];
@@ -31,7 +31,7 @@ export default function AdminDashboardPage() {
   ] : [];
 
   return (
-    <div className="page" style={{ background: 'radial-gradient(ellipse at top,#061228 0%,var(--bg) 55%)' }}>
+    <div className="page">
       <div className="navbar">
         <div className="navbar__logo">
           <div className="navbar__logo-mark"><ShieldCrossIcon size={18} /></div>
@@ -46,19 +46,16 @@ export default function AdminDashboardPage() {
         {/* Quick Links */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
           {[
-            { to: '/admin/ambulances', icon: <FleetIcon size={22} />,    label: 'Fleet',   color: 'var(--primary-light)' },
-            { to: '/admin/users',      icon: <UserIcon size={22} />,     label: 'Users',   color: 'var(--teal-light)'    },
-            { to: '/admin/reports',    icon: <ChartLineIcon size={22} />, label: 'Reports', color: 'var(--amber-light)'  },
+            { to: '/admin/ambulances', icon: <FleetIcon size={22} />,    label: 'Fleet',      color: 'var(--primary-light)' },
+            { to: '/admin/providers',  icon: <AmbulanceIcon size={22} />, label: 'Providers',  color: 'var(--amber-light)'   },
+            { to: '/admin/users',      icon: <UserIcon size={22} />,     label: 'Users',      color: 'var(--teal-light)'    },
+            { to: '/admin/reports',    icon: <ChartLineIcon size={22} />, label: 'Reports',    color: 'var(--green-light)'   },
           ].map(item => (
             <Link key={item.to} to={item.to} className="card" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 14, cursor: 'pointer', textDecoration: 'none' }}>
               <div style={{ color: item.color }}>{item.icon}</div>
               <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>{item.label}</span>
             </Link>
           ))}
-          <button className="card" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 14, textAlign: 'left', border: '1px solid var(--border)', background: 'var(--bg-2)', borderRadius: 'var(--r-lg)', cursor: 'not-allowed', opacity: 0.5 }}>
-            <div style={{ color: 'var(--text-3)' }}><SettingsIcon size={22} /></div>
-            <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-3)' }}>Settings</span>
-          </button>
         </div>
 
         {/* KPI Stats */}
@@ -97,7 +94,9 @@ export default function AdminDashboardPage() {
 
         {/* Emergency Trends Chart */}
         <div className="card">
-          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, marginBottom: 16 }}>📈 Emergency Trends (Last 7 Days)</div>
+          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <ChartLineIcon size={20} style={{ color: 'var(--primary-light)' }} /> Emergency Trends (Last 7 Days)
+          </div>
           {weekData.length > 0 ? (
             <ResponsiveContainer width="100%" height={180}>
               <BarChart data={weekData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
@@ -118,7 +117,9 @@ export default function AdminDashboardPage() {
         {/* Ambulance Utilization Pie */}
         {stats && (
           <div className="card">
-            <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, marginBottom: 16 }}>🚑 Fleet Utilization</div>
+            <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <FleetIcon size={20} style={{ color: 'var(--teal-light)' }} /> Fleet Utilization
+            </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
               <ResponsiveContainer width="50%" height={140}>
                 <PieChart>
@@ -143,7 +144,9 @@ export default function AdminDashboardPage() {
 
         {/* Activity Feed */}
         <div className="card">
-          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, marginBottom: 12 }}>⚡ Live Activity Feed</div>
+          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <ZapIcon size={20} style={{ color: 'var(--amber-light)' }} /> Live Activity Feed
+          </div>
           {feed.length > 0 ? (
             <div className="activity-feed">
               {feed.map((item: any, i: number) => (

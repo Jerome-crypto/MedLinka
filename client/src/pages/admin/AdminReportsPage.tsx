@@ -30,7 +30,7 @@ export default function AdminReportsPage() {
   };
 
   return (
-    <div className="page" style={{ background: 'radial-gradient(ellipse at top,#061228 0%,var(--bg) 55%)' }}>
+    <div className="page">
       <div className="navbar">
         <button onClick={() => navigate('/admin/dashboard')} className="btn btn--ghost btn--sm btn--icon">
           <ArrowLeftIcon size={18} />
@@ -70,7 +70,9 @@ export default function AdminReportsPage() {
 
         {/* Daily volume bar chart — live data */}
         <div className="card card--elevated">
-          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, marginBottom: 16 }}>📊 Daily Volume (This Week)</div>
+          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <ChartLineIcon size={20} style={{ color: 'var(--teal-light)' }} /> Daily Volume (This Week)
+          </div>
           {weekData.length > 0 ? (
             <ResponsiveContainer width="100%" height={160}>
               <BarChart data={weekData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>

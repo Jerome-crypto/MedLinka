@@ -9,15 +9,22 @@ let io: IOServer;
 export const initSocket = (server: IOServer) => {
   io = server;
 
-  // JWT handshake auth
+  // JWT handshake auth — also extract hospitalId so hospital_admin can join the right room
   io.use((socket: Socket, next) => {
     const token = socket.handshake.auth?.token || socket.handshake.headers?.authorization?.split(' ')[1];
     if (!token) return next(new Error('Authentication required'));
 
     try {
-      const payload = jwt.verify(token, config.jwt.secret) as { id: string; role: string };
+      const payload = jwt.verify(token, config.jwt.secret) as {
+        id: string;
+        role: string;
+        hospitalId?: string | null;
+        providerId?: string | null;
+      };
       (socket as any).userId = payload.id;
       (socket as any).userRole = payload.role;
+      (socket as any).hospitalId = payload.hospitalId ?? null;
+      (socket as any).providerId = payload.providerId ?? null;
       next();
     } catch {
       next(new Error('Invalid token'));
@@ -33,16 +40,36 @@ export const initSocket = (server: IOServer) => {
     // Personal room — receives all notifications for this user
     socket.join(`user:${userId}`);
 
-    // Join hospital room if hospital_admin
+    // Join hospital room if hospital_admin — use JWT-embedded hospitalId for targeted events
     if (userRole === 'hospital_admin') {
-      const amb = await prisma.ambulance.findFirst({
-        where: { driver: { id: userId } },
-        select: { hospitalId: true },
-      });
-      // Try to find hospital from user context
-      const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
-      // Join all hospitals room for now — refine per hospital later
-      socket.join('hospital:all');
+      const hospitalId: string | null = (socket as any).hospitalId;
+      if (hospitalId) {
+        socket.join(`hospital:${hospitalId}`);
+        logger.debug(`Hospital admin ${userId} joined room: hospital:${hospitalId}`);
+      } else {
+        // Fallback: look up via ambulance assignment if hospitalId was not in the token
+        const amb = await prisma.ambulance.findFirst({
+          where: { driverId: userId },
+          select: { assignedHospitalId: true },
+        });
+        if (amb?.assignedHospitalId) {
+          socket.join(`hospital:${amb.assignedHospitalId}`);
+          logger.debug(`Hospital admin ${userId} joined room (fallback): hospital:${amb.assignedHospitalId}`);
+        } else {
+          // Last resort: join all hospitals so they at least get some notifications
+          socket.join('hospital:all');
+          logger.warn(`Hospital admin ${userId} joined hospital:all (no assignedHospitalId found)`);
+        }
+      }
+    }
+
+    // Join provider room if provider_manager
+    if (userRole === 'provider_manager') {
+      const providerId: string | null = (socket as any).providerId;
+      if (providerId) {
+        socket.join(`provider:${providerId}`);
+        logger.debug(`Provider manager ${userId} joined room: provider:${providerId}`);
+      }
     }
 
     // ── Driver: join active request room ──────────────────────────

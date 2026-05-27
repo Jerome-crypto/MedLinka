@@ -3,8 +3,10 @@ import type { ApiResponse, Hospital } from '../types';
 
 export const hospitalApi = {
   list: () => apiClient.get<ApiResponse<Hospital[]>>('/hospitals'),
+  mine: () => apiClient.get<ApiResponse<Hospital>>('/hospitals/mine'),
   getById: (id: string) => apiClient.get<ApiResponse<Hospital>>(`/hospitals/${id}`),
   incoming: (id: string) => apiClient.get(`/hospitals/${id}/incoming`),
+  createAdmin: (hospitalId: string, body: any) => apiClient.post<ApiResponse<any>>(`/hospitals/${hospitalId}/admins`, body),
 };
 
 export const reportsApi = {

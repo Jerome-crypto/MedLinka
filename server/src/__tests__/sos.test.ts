@@ -7,12 +7,12 @@ let citizenToken: string;
 let requestId: string;
 
 // Re-use seeded citizen account
-const CITIZEN_PHONE = '+256700000020';
+const CITIZEN_EMAIL = 'alice@medlinka.com';
 const CITIZEN_PWD   = 'Citizen@1234';
 
 beforeAll(async () => {
   const res = await request(app).post('/api/auth/login').send({
-    phone: CITIZEN_PHONE,
+    email: CITIZEN_EMAIL,
     password: CITIZEN_PWD,
   });
   citizenToken = res.body.data?.accessToken;

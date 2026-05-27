@@ -1,10 +1,18 @@
 import { useState, FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
-import { AmbulanceIcon, PhoneIcon, AlertTriangleIcon, UserIcon, ShieldCrossIcon, HospitalIcon } from '../../components/common/Icons';
+import { AmbulanceIcon, AlertTriangleIcon, UserIcon, ShieldCrossIcon, HospitalIcon } from '../../components/common/Icons';
 
 function LockIcon() {
   return <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>;
+}
+function MailIcon() {
+  return (
+    <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+      <polyline points="22,6 12,13 2,6" />
+    </svg>
+  );
 }
 function EyeIcon({ off }: { off?: boolean }) {
   return off
@@ -16,6 +24,7 @@ const ROLE_LABELS: Record<string, { label: string; color: string }> = {
   citizen:        { label: 'Citizen / Patient',  color: 'var(--green-light)'  },
   driver:         { label: 'Ambulance Driver',   color: 'var(--primary-light)'},
   hospital_admin: { label: 'Hospital Staff',     color: 'var(--teal-light)'   },
+  provider_manager: { label: 'Provider Manager',  color: 'var(--teal-light)'   },
   admin:          { label: 'Administrator',      color: 'var(--amber-light)'  },
 };
 
@@ -25,17 +34,17 @@ export default function LoginPage() {
   const [params] = useSearchParams();
   const roleParam = params.get('role') || '';
   const roleInfo = ROLE_LABELS[roleParam];
-  const [form, setForm] = useState({ phone: '', password: '' });
+  const [form, setForm] = useState({ email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [showCreds, setShowCreds] = useState(false);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault(); clearError();
-    try { await login(form.phone, form.password); navigate('/'); }
+    try { await login(form.email, form.password); navigate('/'); }
     catch { /* shown via store */ }
   };
 
-  const fillCreds = (phone: string, password: string) => { setForm({ phone, password }); setShowCreds(false); };
+  const fillCreds = (email: string, password: string) => { setForm({ email, password }); setShowCreds(false); };
 
   return (
     <div className="auth-page">
@@ -65,11 +74,11 @@ export default function LoginPage() {
         )}
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div className="form-group">
-            <label className="form-label" htmlFor="login-phone">Phone Number</label>
+            <label className="form-label" htmlFor="login-email">Email Address</label>
             <div className="input-wrapper">
-              <span className="input-icon"><PhoneIcon size={16} /></span>
-              <input id="login-phone" className="form-input" type="tel" placeholder="+256700000000"
-                value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} required />
+              <span className="input-icon"><MailIcon /></span>
+              <input id="login-email" className="form-input" type="email" placeholder="name@domain.com"
+                value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} required />
             </div>
           </div>
           <div className="form-group">
@@ -106,20 +115,20 @@ export default function LoginPage() {
           <div className="card animate-fade" style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <p style={{ fontSize: '0.75rem', color: 'var(--text-3)', marginBottom: '4px', fontWeight: 600 }}>Click any to auto-fill:</p>
             {[
-              { label: 'System Admin',         phone: '+256700000001', pwd: 'Admin@1234',    icon: <ShieldCrossIcon size={14} />, color: 'var(--crimson-light)' },
-              { label: 'Hospital Admin',       phone: '+256700000002', pwd: 'Hospital@1234', icon: <HospitalIcon size={14} />,    color: 'var(--teal-light)'   },
-              { label: 'Driver — John Mukasa', phone: '+256700000010', pwd: 'Driver@1234',   icon: <AmbulanceIcon size={14} />,   color: 'var(--primary-light)'},
-              { label: 'Driver — Sarah Nalugo',phone: '+256700000011', pwd: 'Driver@1234',   icon: <AmbulanceIcon size={14} />,   color: 'var(--primary-light)'},
-              { label: 'Citizen — Alice',      phone: '+256700000020', pwd: 'Citizen@1234',  icon: <UserIcon size={14} />,        color: 'var(--green-light)'  },
-            ].map(({ label, phone, pwd, icon, color }) => (
-              <button key={phone} onClick={() => fillCreds(phone, pwd)}
+              { label: 'System Admin',         email: 'admin@medlinka.com', pwd: 'Admin@1234',    icon: <ShieldCrossIcon size={14} />, color: 'var(--crimson-light)' },
+              { label: 'Hospital Admin',       email: 'hospital@medlinka.com', pwd: 'Hospital@1234', icon: <HospitalIcon size={14} />,    color: 'var(--teal-light)'   },
+              { label: 'Driver — John Mukasa', email: 'driver1@medlinka.com', pwd: 'Driver@1234',   icon: <AmbulanceIcon size={14} />,   color: 'var(--primary-light)'},
+              { label: 'Driver — Sarah Nalugo',email: 'driver2@medlinka.com', pwd: 'Driver@1234',   icon: <AmbulanceIcon size={14} />,   color: 'var(--primary-light)'},
+              { label: 'Citizen — Alice',      email: 'alice@medlinka.com', pwd: 'Citizen@1234',  icon: <UserIcon size={14} />,        color: 'var(--green-light)'  },
+            ].map(({ label, email, pwd, icon, color }) => (
+              <button key={email} onClick={() => fillCreds(email, pwd)}
                 style={{ background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: 'var(--r-md)', padding: '10px 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px', textAlign: 'left', width: '100%', transition: 'border-color 0.2s' }}
                 onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--border-2)')}
                 onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border)')}>
                 <span style={{ color, flexShrink: 0 }}>{icon}</span>
                 <div>
                   <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text)' }}>{label}</div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-3)' }}>{phone} / {pwd}</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-3)' }}>{email} / {pwd}</div>
                 </div>
               </button>
             ))}

@@ -10,7 +10,10 @@ router.use(authenticate);
 const createAmbulanceSchema = z.object({
   body: z.object({
     plateNumber: z.string().trim().min(1, 'Plate number required'),
-    hospitalId: z.string().min(1, 'Hospital ID required'),
+    providerId: z.string().uuid('Provider ID must be a UUID').optional(),
+    assignedHospitalId: z.string().uuid().optional(),
+    ambulanceType: z.string().optional(),
+    equipmentLevel: z.number().int().min(1).optional(),
     driverId: z.string().uuid().optional(),
     lat: z.number().min(-90).max(90).optional(),
     lng: z.number().min(-180).max(180).optional(),
@@ -45,20 +48,28 @@ router.patch(
 // GET /api/ambulances/:id
 router.get('/:id', AmbulanceController.getById);
 
-// POST /api/ambulances  [admin only]
+// POST /api/ambulances  [admin, provider_manager]
 router.post(
   '/',
-  authorize('admin'),
+  authorize('admin', 'provider_manager'),
   validate(createAmbulanceSchema),
   AmbulanceController.create
 );
 
-// PATCH /api/ambulances/:id/status  [admin]
+// PATCH /api/ambulances/:id/status  [admin, provider_manager]
 router.patch(
   '/:id/status',
-  authorize('admin'),
+  authorize('admin', 'provider_manager'),
   validate(updateAmbulanceStatusSchema),
   AmbulanceController.updateStatus
+);
+
+// PATCH /api/ambulances/:id/driver  [admin, provider_manager]
+router.patch(
+  '/:id/driver',
+  authorize('admin', 'provider_manager'),
+  validate(z.object({ body: z.object({ driverId: z.string().uuid().optional().nullable() }) })),
+  AmbulanceController.assignDriver
 );
 
 // PATCH /api/ambulances/:id/location  [driver, admin]
@@ -69,7 +80,7 @@ router.patch(
   AmbulanceController.updateLocation
 );
 
-// DELETE /api/ambulances/:id  [admin]
-router.delete('/:id', authorize('admin'), AmbulanceController.remove);
+// DELETE /api/ambulances/:id  [admin, provider_manager]
+router.delete('/:id', authorize('admin', 'provider_manager'), AmbulanceController.remove);
 
 export default router;

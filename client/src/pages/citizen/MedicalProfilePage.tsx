@@ -50,7 +50,7 @@ export default function MedicalProfilePage() {
   const initials = user?.name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'U';
 
   return (
-    <div className="page" style={{ background: 'radial-gradient(ellipse at top,#071020 0%,var(--bg) 55%)' }}>
+    <div className="page">
       <div className="navbar">
         <div className="navbar__logo">
           <div className="navbar__logo-mark"><UserIcon size={18} /></div>

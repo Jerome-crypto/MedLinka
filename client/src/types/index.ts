@@ -2,7 +2,7 @@
 // MedLinka Shared Types
 // ─────────────────────────────────────────────────────────────────
 
-export type Role = 'citizen' | 'driver' | 'hospital_admin' | 'admin';
+export type Role = 'citizen' | 'driver' | 'hospital_admin' | 'provider_manager' | 'admin';
 export type AmbulanceStatus = 'available' | 'dispatched' | 'offline' | 'maintenance';
 export type RequestStatus =
   | 'pending'
@@ -15,9 +15,11 @@ export type RequestStatus =
 export interface User {
   id: string;
   name: string;
-  phone: string;
-  email?: string;
+  email: string;
+  phone?: string;
   role: Role;
+  providerId?: string;
+  hospitalId?: string;
   createdAt: string;
 }
 

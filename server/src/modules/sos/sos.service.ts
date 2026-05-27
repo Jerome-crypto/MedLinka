@@ -141,12 +141,16 @@ export const SosService = {
     });
 
     // Broadcast status change
-    const io = getIO();
-    io.to(`request:${requestId}`).emit('sos:statusUpdate', {
-      requestId,
-      status,
-      timestamp: now,
-    });
+    try {
+      const io = getIO();
+      io.to(`request:${requestId}`).emit('sos:statusUpdate', {
+        requestId,
+        status,
+        timestamp: now,
+      });
+    } catch (err: any) {
+      logger.warn(`Failed to broadcast status update via socket: ${err.message}`);
+    }
 
     return updated;
   },

@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../../api/client';
-import { ArrowLeftIcon, UserIcon, AmbulanceIcon, HospitalIcon, ShieldCrossIcon, PlusIcon } from '../../components/common/Icons';
+import { hospitalApi } from '../../api/hospital.api';
+import { ArrowLeftIcon, UserIcon, AmbulanceIcon, HospitalIcon, ShieldCrossIcon } from '../../components/common/Icons';
 
-// Inline PlusIcon if not in Icons.tsx yet
 function Plus() {
   return <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>;
 }
@@ -12,18 +12,20 @@ const ROLE_META = {
   citizen:        { label: 'Citizen',       color: 'var(--green-light)',   bg: 'var(--green-bg)',     icon: <UserIcon size={14} /> },
   driver:         { label: 'Driver',        color: 'var(--primary-light)', bg: 'var(--primary-glow)', icon: <AmbulanceIcon size={14} /> },
   hospital_admin: { label: 'Hospital Admin',color: 'var(--teal-light)',    bg: 'var(--teal-glow)',    icon: <HospitalIcon size={14} /> },
+  provider_manager: { label: 'Provider Manager',color: 'var(--amber-light)',bg: 'rgba(255,179,0,0.12)',icon: <ShieldCrossIcon size={14} /> },
   admin:          { label: 'Admin',         color: 'var(--crimson-light)', bg: 'rgba(211,47,47,0.12)',icon: <ShieldCrossIcon size={14} /> },
 };
 
 type RoleKey = keyof typeof ROLE_META;
 
-interface UserRecord { id: string; name: string; phone: string; email?: string; role: RoleKey; createdAt: string; }
+interface UserRecord { id: string; name: string; phone?: string; email: string; role: RoleKey; createdAt: string; }
 
-const BLANK = { name: '', phone: '', email: '', password: '', role: 'driver' as RoleKey };
+const BLANK = { name: '', phone: '', email: '', password: '', role: 'driver' as RoleKey, hospitalId: '' };
 
 export default function AdminUsersPage() {
   const navigate = useNavigate();
   const [users, setUsers] = useState<UserRecord[]>([]);
+  const [hospitals, setHospitals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<RoleKey | 'all'>('all');
   const [showModal, setShowModal] = useState(false);
@@ -38,13 +40,34 @@ export default function AdminUsersPage() {
     } catch { } finally { setLoading(false); }
   };
 
-  useEffect(() => { fetchUsers(); }, []);
+  const fetchHospitals = async () => {
+    try {
+      const res = await hospitalApi.list();
+      setHospitals(res.data.data);
+    } catch { }
+  };
+
+  useEffect(() => {
+    fetchUsers();
+    fetchHospitals();
+  }, []);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true); setFormError('');
     try {
-      await apiClient.post('/auth/register', form);
+      if (form.role === 'hospital_admin') {
+        if (!form.hospitalId) {
+          setFormError('Please select a hospital for this administrator');
+          setSaving(false);
+          return;
+        }
+        const { hospitalId, ...body } = form;
+        await hospitalApi.createAdmin(hospitalId, body);
+      } else {
+        const { hospitalId, ...body } = form;
+        await apiClient.post('/auth/register', body);
+      }
       setShowModal(false);
       setForm(BLANK);
       fetchUsers();
@@ -73,7 +96,7 @@ export default function AdminUsersPage() {
 
       {/* Role filter tabs */}
       <div style={{ padding: '12px 16px 0', display: 'flex', gap: '6px', overflowX: 'auto' }}>
-        {(['all', 'citizen', 'driver', 'hospital_admin', 'admin'] as const).map(r => (
+        {(['all', 'citizen', 'driver', 'hospital_admin', 'provider_manager', 'admin'] as const).map(r => (
           <button key={r} onClick={() => setFilter(r)}
             style={{
               padding: '6px 14px', borderRadius: 'var(--r-full)', border: 'none', cursor: 'pointer',
@@ -116,7 +139,8 @@ export default function AdminUsersPage() {
                       {meta.icon} {meta.label}
                     </span>
                   </div>
-                  <div style={{ fontSize: '0.8125rem', color: 'var(--text-3)', marginTop: '3px' }}>{u.phone}</div>
+                  <div style={{ fontSize: '0.8125rem', color: 'var(--text-2)', marginTop: '3px' }}>{u.email}</div>
+                  {u.phone && <div style={{ fontSize: '0.75rem', color: 'var(--text-3)' }}>{u.phone}</div>}
                 </div>
               </div>
             );
@@ -134,6 +158,7 @@ export default function AdminUsersPage() {
           <div className="card card--elevated animate-fade" style={{
             width: '100%', maxWidth: '480px', borderRadius: 'var(--r-xl) var(--r-xl) 0 0',
             padding: '28px 24px 40px', display: 'flex', flexDirection: 'column', gap: '14px',
+            maxHeight: '90vh', overflowY: 'auto'
           }}>
             <h3>Create Staff Account</h3>
             <p style={{ fontSize: '0.875rem', marginTop: '-8px' }}>Create driver or hospital admin accounts.</p>
@@ -153,23 +178,37 @@ export default function AdminUsersPage() {
                   <option value="hospital_admin">Hospital Admin</option>
                 </select>
               </div>
+
+              {form.role === 'hospital_admin' && (
+                <div className="form-group animate-fade">
+                  <label className="form-label">Associate Hospital *</label>
+                  <select className="form-input" required value={form.hospitalId}
+                    onChange={(e) => setForm({ ...form, hospitalId: e.target.value })}>
+                    <option value="">Select Hospital</option>
+                    {hospitals.map(h => (
+                      <option key={h.id} value={h.id}>{h.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               <div className="form-group">
-                <label className="form-label">Full Name</label>
+                <label className="form-label">Full Name *</label>
                 <input className="form-input" required placeholder="John Mukasa"
                   value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
               </div>
               <div className="form-group">
-                <label className="form-label">Phone Number</label>
-                <input className="form-input" required type="tel" placeholder="+256700000000"
-                  value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Email <span style={{ color: 'var(--text-3)', fontWeight: 400 }}>(optional)</span></label>
-                <input className="form-input" type="email" placeholder="staff@medlinka.ug"
+                <label className="form-label">Email Address *</label>
+                <input className="form-input" required type="email" placeholder="staff@medlinka.ug"
                   value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
               </div>
               <div className="form-group">
-                <label className="form-label">Temporary Password</label>
+                <label className="form-label">Phone Number <span style={{ color: 'var(--text-3)', fontWeight: 400 }}>(optional)</span></label>
+                <input className="form-input" type="tel" placeholder="+256700000000"
+                  value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Temporary Password *</label>
                 <input className="form-input" required type="password" minLength={6} placeholder="Min. 6 characters"
                   value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
               </div>

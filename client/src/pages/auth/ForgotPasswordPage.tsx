@@ -1,18 +1,26 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { authApi } from '../../api/auth.api';
-import { AmbulanceIcon, PhoneIcon } from '../../components/common/Icons';
+import { AmbulanceIcon } from '../../components/common/Icons';
 
 function LockIcon() {
   return <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>;
 }
+function MailIcon() {
+  return (
+    <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+      <polyline points="22,6 12,13 2,6" />
+    </svg>
+  );
+}
 
-type FPStep = 'phone' | 'otp' | 'newpw' | 'done';
+type FPStep = 'email' | 'otp' | 'newpw' | 'done';
 
 export default function ForgotPasswordPage() {
   const navigate = useNavigate();
-  const [step, setStep]       = useState<FPStep>('phone');
-  const [phone, setPhone]     = useState('');
+  const [step, setStep]       = useState<FPStep>('email');
+  const [email, setEmail]     = useState('');
   const [otp, setOtp]         = useState('');
   const [pw, setPw]           = useState('');
   const [confirm, setConfirm] = useState('');
@@ -20,10 +28,10 @@ export default function ForgotPasswordPage() {
   const [loading, setLoading] = useState(false);
 
   const handleSendOtp = async () => {
-    if (!phone) { setError('Please enter your phone number'); return; }
+    if (!email) { setError('Please enter your email address'); return; }
     setLoading(true); setError('');
     try {
-      await authApi.forgotPassword(phone);
+      await authApi.forgotPassword(email);
       setStep('otp');
     } catch (err: any) {
       setError(err?.response?.data?.message || 'Failed to send code. Try again.');
@@ -34,7 +42,7 @@ export default function ForgotPasswordPage() {
     if (otp.length !== 6) { setError('Enter a 6-digit code'); return; }
     setLoading(true); setError('');
     try {
-      await authApi.verifyOtp(phone, otp);
+      await authApi.verifyOtp(email, otp);
       setStep('newpw');
     } catch (err: any) {
       setError(err?.response?.data?.message || 'Incorrect or expired code.');
@@ -46,7 +54,7 @@ export default function ForgotPasswordPage() {
     if (pw !== confirm) { setError('Passwords do not match'); return; }
     setLoading(true); setError('');
     try {
-      await authApi.resetPassword(phone, otp, pw);
+      await authApi.resetPassword(email, otp, pw);
       setStep('done');
     } catch (err: any) {
       setError(err?.response?.data?.message || 'Reset failed. Please restart the process.');
@@ -64,22 +72,22 @@ export default function ForgotPasswordPage() {
       </div>
 
       <div className="auth-card animate-scale">
-        {step === 'phone' && (
+        {step === 'email' && (
           <>
             <h2 style={{ marginBottom: 4 }}>Forgot Password</h2>
-            <p style={{ marginBottom: 24, fontSize: '0.875rem' }}>Enter your registered phone number to receive a reset code.</p>
+            <p style={{ marginBottom: 24, fontSize: '0.875rem' }}>Enter your registered email address to receive a reset code.</p>
             <div className="form-group">
-              <label className="form-label" htmlFor="fp-phone">Phone Number</label>
+              <label className="form-label" htmlFor="fp-email">Email Address</label>
               <div className="input-wrapper">
-                <span className="input-icon"><PhoneIcon size={16} /></span>
-                <input id="fp-phone" className="form-input" type="tel" placeholder="+256700000000"
-                  value={phone} onChange={e => setPhone(e.target.value)}
+                <span className="input-icon"><MailIcon /></span>
+                <input id="fp-email" className="form-input" type="email" placeholder="name@domain.com"
+                  value={email} onChange={e => setEmail(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && handleSendOtp()} />
               </div>
             </div>
             {error && <p style={{ color: 'var(--crimson-light)', fontSize: '0.85rem', marginTop: 8 }}>{error}</p>}
             <button className="btn btn--primary btn--full btn--lg" style={{ marginTop: 16 }}
-              onClick={handleSendOtp} disabled={!phone || loading}>
+              onClick={handleSendOtp} disabled={!email || loading}>
               {loading ? <span className="spinner" /> : 'Send Reset Code'}
             </button>
           </>
@@ -89,8 +97,8 @@ export default function ForgotPasswordPage() {
           <>
             <h2 style={{ marginBottom: 4 }}>Enter OTP</h2>
             <p style={{ marginBottom: 24, fontSize: '0.875rem' }}>
-              A 6-digit code was sent to <strong style={{ color: 'var(--primary-light)' }}>{phone}</strong>.
-              <br /><span style={{ color: 'var(--text-3)', fontSize: '0.8rem' }}>Check your SMS messages.</span>
+              A 6-digit code was sent to <strong style={{ color: 'var(--primary-light)' }}>{email}</strong>.
+              <br /><span style={{ color: 'var(--text-3)', fontSize: '0.8rem' }}>Check your email inbox.</span>
             </p>
             <div className="form-group">
               <label className="form-label" htmlFor="fp-otp">6-Digit Code</label>
@@ -105,7 +113,7 @@ export default function ForgotPasswordPage() {
               {loading ? <span className="spinner" /> : 'Verify Code'}
             </button>
             <button className="btn btn--ghost btn--full btn--sm" style={{ marginTop: 8 }}
-              onClick={() => { setStep('phone'); setOtp(''); setError(''); }}>Back</button>
+              onClick={() => { setStep('email'); setOtp(''); setError(''); }}>Back</button>
           </>
         )}
 

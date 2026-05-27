@@ -9,7 +9,8 @@ export const AmbulanceService = {
       prisma.ambulance.findMany({
         include: {
           driver: { select: { id: true, name: true, phone: true } },
-          hospital: { select: { id: true, name: true } },
+          provider: { select: { id: true, name: true } },
+          assignedHospital: { select: { id: true, name: true } },
         },
         orderBy: { createdAt: 'desc' },
         skip,
@@ -25,7 +26,8 @@ export const AmbulanceService = {
       where: { id },
       include: {
         driver: { select: { id: true, name: true, phone: true } },
-        hospital: true,
+        provider: true,
+        assignedHospital: true,
       },
     });
     if (!amb) throw new AppError('Ambulance not found', 404);
@@ -34,14 +36,17 @@ export const AmbulanceService = {
 
   async create(data: {
     plateNumber: string;
-    hospitalId: string;
+    providerId: string;
+    assignedHospitalId?: string;
+    ambulanceType?: string;
+    equipmentLevel?: number;
     driverId?: string;
     lat?: number;
     lng?: number;
   }) {
     return prisma.ambulance.create({
       data,
-      include: { driver: { select: { id: true, name: true } }, hospital: true },
+      include: { driver: { select: { id: true, name: true } }, provider: true, assignedHospital: true },
     });
   },
 
@@ -97,5 +102,27 @@ export const AmbulanceService = {
     const amb = await prisma.ambulance.findUnique({ where: { driverId } });
     if (!amb) throw new AppError('No ambulance assigned to this driver', 404);
     return prisma.ambulance.update({ where: { id: amb.id }, data: { status } });
+  },
+
+  async assignDriver(id: string, driverId: string | null) {
+    const amb = await prisma.ambulance.findUnique({ where: { id } });
+    if (!amb) throw new AppError('Ambulance not found', 404);
+
+    if (driverId) {
+      const user = await prisma.user.findUnique({ where: { id: driverId } });
+      if (!user || user.role !== 'driver') {
+        throw new AppError('Invalid driver account', 400);
+      }
+      await prisma.ambulance.updateMany({
+        where: { driverId },
+        data: { driverId: null },
+      });
+    }
+
+    return prisma.ambulance.update({
+      where: { id },
+      data: { driverId },
+      include: { driver: { select: { id: true, name: true, phone: true } } },
+    });
   },
 };

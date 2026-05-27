@@ -17,4 +17,14 @@ export const ambulanceApi = {
   /** Driver: update own ambulance status without knowing the ID */
   updateMyStatus: (status: string) =>
     apiClient.patch<ApiResponse<Ambulance>>('/ambulances/my-status', { status }),
+
+  /** Admin/Provider Manager: Create ambulance */
+  create: (body: any) => apiClient.post<ApiResponse<Ambulance>>('/ambulances', body),
+
+  /** Admin/Provider Manager: Assign driver to ambulance */
+  assignDriver: (id: string, driverId: string | null) =>
+    apiClient.patch(`/ambulances/${id}/driver`, { driverId }),
+
+  /** Admin/Provider Manager: Remove ambulance */
+  remove: (id: string) => apiClient.delete(`/ambulances/${id}`),
 };

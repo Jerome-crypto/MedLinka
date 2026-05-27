@@ -47,6 +47,28 @@ export const HospitalService = {
     return prisma.hospital.update({ where: { id }, data });
   },
 
+  /** Get the hospital for a logged-in hospital_admin */
+  async getMyHospital(userId: string, hospitalIdFromToken?: string | null) {
+    // Fast path: hospitalId was embedded in the JWT
+    if (hospitalIdFromToken) {
+      const hospital = await prisma.hospital.findUnique({ where: { id: hospitalIdFromToken } });
+      if (hospital) return hospital;
+    }
+    // Fallback: look up via ambulance assignment
+    const amb = await prisma.ambulance.findFirst({
+      where: { driverId: userId },
+      select: { assignedHospitalId: true },
+    });
+    if (amb?.assignedHospitalId) {
+      const hospital = await prisma.hospital.findUnique({ where: { id: amb.assignedHospitalId } });
+      if (hospital) return hospital;
+    }
+    // Last resort: first hospital in the system
+    const first = await prisma.hospital.findFirst({ orderBy: { name: 'asc' } });
+    if (first) return first;
+    throw new AppError('No hospital found for this account', 404);
+  },
+
   /** Incoming patients for a hospital dashboard */
   async getIncomingPatients(hospitalId: string) {
     return prisma.emergencyRequest.findMany({

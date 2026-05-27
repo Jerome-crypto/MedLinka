@@ -3,7 +3,7 @@ import app from '../app';
 
 // ── Test suite: Auth endpoints ──────────────────────────────────────
 
-const TEST_PHONE = `+25670000${Math.floor(Math.random() * 9000 + 1000)}`;
+const TEST_EMAIL = `citizen-${Math.floor(Math.random() * 100000)}@medlinka.com`;
 let accessToken: string;
 let refreshToken: string;
 
@@ -11,7 +11,7 @@ describe('POST /api/auth/register', () => {
   it('should register a new citizen successfully', async () => {
     const res = await request(app).post('/api/auth/register').send({
       name: 'Test Citizen',
-      phone: TEST_PHONE,
+      email: TEST_EMAIL,
       password: 'test1234',
     });
 
@@ -24,10 +24,10 @@ describe('POST /api/auth/register', () => {
     refreshToken = res.body.data.refreshToken;
   });
 
-  it('should reject duplicate phone registration', async () => {
+  it('should reject duplicate email registration', async () => {
     const res = await request(app).post('/api/auth/register').send({
       name: 'Duplicate',
-      phone: TEST_PHONE,
+      email: TEST_EMAIL,
       password: 'test1234',
     });
     expect(res.status).toBe(409);
@@ -36,7 +36,7 @@ describe('POST /api/auth/register', () => {
 
   it('should reject missing name', async () => {
     const res = await request(app).post('/api/auth/register').send({
-      phone: '+25670099999',
+      email: 'no-name@medlinka.com',
       password: 'test1234',
     });
     expect(res.status).toBe(422);
@@ -45,7 +45,7 @@ describe('POST /api/auth/register', () => {
   it('should reject short password', async () => {
     const res = await request(app).post('/api/auth/register').send({
       name: 'Short',
-      phone: '+25670099988',
+      email: 'short-pwd@medlinka.com',
       password: '123',
     });
     expect(res.status).toBe(422);
@@ -55,16 +55,18 @@ describe('POST /api/auth/register', () => {
 describe('POST /api/auth/login', () => {
   it('should login with valid credentials', async () => {
     const res = await request(app).post('/api/auth/login').send({
-      phone: TEST_PHONE,
+      email: TEST_EMAIL,
       password: 'test1234',
     });
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveProperty('accessToken');
+    accessToken = res.body.data.accessToken;
+    refreshToken = res.body.data.refreshToken;
   });
 
   it('should reject invalid password', async () => {
     const res = await request(app).post('/api/auth/login').send({
-      phone: TEST_PHONE,
+      email: TEST_EMAIL,
       password: 'wrongpassword',
     });
     expect(res.status).toBe(401);
@@ -73,7 +75,7 @@ describe('POST /api/auth/login', () => {
 
   it('should reject non-existent user', async () => {
     const res = await request(app).post('/api/auth/login').send({
-      phone: '+25600000000',
+      email: 'does-not-exist@medlinka.com',
       password: 'test1234',
     });
     expect(res.status).toBe(401);
@@ -87,7 +89,7 @@ describe('GET /api/auth/me', () => {
       .set('Authorization', `Bearer ${accessToken}`);
 
     expect(res.status).toBe(200);
-    expect(res.body.data).toHaveProperty('phone', TEST_PHONE);
+    expect(res.body.data).toHaveProperty('email', TEST_EMAIL);
   });
 
   it('should reject request without token', async () => {

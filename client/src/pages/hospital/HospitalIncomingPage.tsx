@@ -1,13 +1,15 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { useAuthStore } from '../../store/authStore';
 import { useSocket } from '../../hooks/useSocket';
 import { hospitalApi } from '../../api/hospital.api';
 import { useToast } from '../../components/common/ToastManager';
+import { useTheme } from '../../hooks/useTheme';
 import { SkeletonCard } from '../../components/common/SkeletonLoader';
 import type { EmergencyRequest, HospitalIncomingEvent } from '../../types';
+import { sosApi } from '../../api/sos.api';
 import { format } from 'date-fns';
 import { HospitalIcon, BedIcon, AmbulanceIcon, AlertTriangleIcon, UserIcon, ClockIcon, LogOutIcon, CheckCircleIcon } from '../../components/common/Icons';
 
@@ -15,6 +17,30 @@ delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({ iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png', iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png', shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png' });
 
 const ambMapIcon = L.divIcon({ className: '', html: '<div style="background:#1565C0;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(21,101,192,0.5);border:2px solid #1E88E5"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><rect x="2" y="7" width="16" height="11" rx="1.5"/><path d="M18 12h3l1 4v2h-4"/><circle cx="6.5" cy="19.5" r="1.5"/><circle cx="15.5" cy="19.5" r="1.5"/></svg></div>', iconSize: [28, 28], iconAnchor: [14, 14] });
+
+const MapControls = ({ lat, lng }: { lat: number; lng: number }) => {
+  const map = useMap();
+  
+  const handleZoomIn = () => map.zoomIn();
+  const handleZoomOut = () => map.zoomOut();
+  const handleRecenter = () => {
+    map.setView([lat, lng], 13, { animate: true });
+  };
+
+  return (
+    <div style={{ position: 'absolute', right: '8px', bottom: '8px', zIndex: 1000, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+      <button onClick={handleZoomIn} style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--bg-3)', border: '1px solid var(--border-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--shadow-sm)', cursor: 'pointer', color: 'var(--text)', fontWeight: 600, fontSize: '1.1rem' }}>
+        ＋
+      </button>
+      <button onClick={handleZoomOut} style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--bg-3)', border: '1px solid var(--border-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--shadow-sm)', cursor: 'pointer', color: 'var(--text)', fontWeight: 600, fontSize: '1.1rem' }}>
+        －
+      </button>
+      <button onClick={handleRecenter} style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--bg-3)', border: '1px solid var(--border-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--shadow-sm)', cursor: 'pointer', color: 'var(--text)', fontSize: '0.95rem' }} title="Recenter">
+        🎯
+      </button>
+    </div>
+  );
+};
 
 function getSeverity(req: EmergencyRequest): 'critical' | 'moderate' | 'stable' {
   const eta = req.estimatedEta ? req.estimatedEta / 60 : 999;
@@ -38,32 +64,46 @@ export default function HospitalIncomingPage() {
   const { user, logout } = useAuthStore();
   const { on, emit } = useSocket();
   const toast = useToast();
+  const { isDark } = useTheme();
   const [patients, setPatients] = useState<EmergencyRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [acknowledged, setAcknowledged] = useState<Record<string, boolean>>({});
-  const [showMap, setShowMap] = useState(false);
-  const hospitalId = 'h-001';
   const isFirstLoad = useRef(true);
-
-  const fetchIncoming = async () => {
-    try { const res = await hospitalApi.incoming(hospitalId); setPatients(res.data.data); }
+  
+  const fetchIncoming = async (hId: string) => {
+    try { const res = await hospitalApi.incoming(hId); setPatients(res.data.data); }
     catch (err) { console.error(err); } finally { setLoading(false); }
   };
 
   useEffect(() => {
-    fetchIncoming();
-    emit('hospital:join', hospitalId);
+    let currentHospitalId: string | null = null;
+    hospitalApi.mine().then(res => {
+      currentHospitalId = res.data.data.id;
+      fetchIncoming(currentHospitalId);
+      emit('hospital:join', currentHospitalId);
+    }).catch(() => setLoading(false));
+
     const offIncoming = on('hospital:incoming', (data: HospitalIncomingEvent) => {
-      fetchIncoming();
+      if (currentHospitalId) fetchIncoming(currentHospitalId);
       if (!isFirstLoad.current) {
         beep();
-        toast.warning('🚑 New Incoming Patient', data?.patient?.name ? `Patient: ${data.patient.name}` : 'Incoming emergency patient');
+        toast.warning('New Incoming Patient', data?.patient?.name ? `Patient: ${data.patient.name}` : 'Incoming emergency patient');
       }
       isFirstLoad.current = false;
     });
-    const offStatus = on('sos:statusUpdate', () => fetchIncoming());
+    const offStatus = on('sos:statusUpdate', () => {
+      if (currentHospitalId) fetchIncoming(currentHospitalId);
+    });
     return () => { offIncoming(); offStatus(); };
-  }, []);
+  }, [emit, on, toast]);
+
+  const handleAcknowledge = async (reqId: string) => {
+    try {
+      await sosApi.acknowledge(reqId);
+      setAcknowledged(prev => ({ ...prev, [reqId]: true }));
+      toast.success('Hospital preparation acknowledged');
+    } catch (err) { console.error(err); }
+  };
 
   const critical = patients.filter(p => getSeverity(p) === 'critical').length;
   const moderate  = patients.filter(p => getSeverity(p) === 'moderate').length;
@@ -74,7 +114,7 @@ export default function HospitalIncomingPage() {
     .map(p => ({ id: p.id, lat: p.ambulance!.lat!, lng: p.ambulance!.lng!, plate: p.ambulance?.plateNumber || '' }));
 
   return (
-    <div className="page" style={{ background: 'radial-gradient(ellipse at top,#0a1030 0%,var(--bg) 55%)' }}>
+    <div className="page">
       <div className="navbar">
         <div className="navbar__logo">
           <div className="navbar__logo-mark"><HospitalIcon size={18} /></div>
@@ -111,24 +151,28 @@ export default function HospitalIncomingPage() {
           </div>
         </div>
 
-        {/* Live ambulance map (collapsible) */}
+        {/* Live ambulance map */}
         {ambPositions.length > 0 && (
           <div>
-            <button onClick={() => setShowMap(v => !v)} className="btn btn--ghost btn--sm" style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <AmbulanceIcon size={15} /> {showMap ? 'Hide' : 'Show'} Live Ambulance Map ({ambPositions.length})
-            </button>
-            {showMap && (
-              <div className="map-container" style={{ height: 220 }}>
-                <MapContainer center={[ambPositions[0].lat, ambPositions[0].lng]} zoom={13} style={{ height: '100%' }} zoomControl={false}>
-                  <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                  {ambPositions.map(a => (
-                    <Marker key={a.id} position={[a.lat, a.lng]} icon={ambMapIcon}>
-                      <Popup>{a.plate}</Popup>
-                    </Marker>
-                  ))}
-                </MapContainer>
-              </div>
-            )}
+            <div style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, color: 'var(--text-2)' }}>
+              <AmbulanceIcon size={16} /> Live Ambulance Map ({ambPositions.length})
+            </div>
+            <div className="map-container" style={{ height: 260, position: 'relative' }}>
+              <MapContainer center={[ambPositions[0].lat, ambPositions[0].lng]} zoom={13} style={{ height: '100%' }} zoomControl={false}>
+                <TileLayer
+                  url={isDark
+                    ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+                    : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png'}
+                  attribution="© CartoDB"
+                />
+                {ambPositions.map(a => (
+                  <Marker key={a.id} position={[a.lat, a.lng]} icon={ambMapIcon}>
+                    <Popup>{a.plate}</Popup>
+                  </Marker>
+                ))}
+                <MapControls lat={ambPositions[0].lat} lng={ambPositions[0].lng} />
+              </MapContainer>
+            </div>
           </div>
         )}
 
@@ -183,13 +227,15 @@ export default function HospitalIncomingPage() {
                   )}
                 </Link>
                 <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-                  <button onClick={() => setAcknowledged(prev => ({ ...prev, [req.id]: !isAck }))}
+                  <button onClick={() => !isAck && handleAcknowledge(req.id)}
                     className={`btn btn--sm flex-1 ${isAck ? 'btn--success' : 'btn--primary'}`}
+                    disabled={isAck}
                     style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                     <BedIcon size={15} /> {isAck ? '✓ Bed Ready' : 'Mark Bed Ready'}
                   </button>
-                  <button onClick={() => setAcknowledged(prev => ({ ...prev, [req.id]: !isAck }))}
+                  <button onClick={() => !isAck && handleAcknowledge(req.id)}
                     className={`btn btn--sm flex-1 ${isAck ? 'btn--success' : 'btn--ghost'}`}
+                    disabled={isAck}
                     style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                     <CheckCircleIcon size={15} /> {isAck ? '✓ ER Prepared' : 'Mark ER Prepared'}
                   </button>

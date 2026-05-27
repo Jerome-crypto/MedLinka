@@ -12,27 +12,74 @@ import { logger } from '../../config/logger';
  * 4. Emit real-time events to driver, citizen, and the nearest hospital
  */
 export const DispatchService = {
-  async dispatch(requestId: string, pickupLat: number, pickupLng: number) {
-    // Fetch all available ambulances with driver info
+  async dispatch(requestId: string, pickupLat: number, pickupLng: number, emergencyTypeName?: string) {
+    // Determine required equipment level
+    let requiredEquipmentLevel = 1;
+    if (emergencyTypeName) {
+      const et = await prisma.emergencyType.findUnique({ where: { name: emergencyTypeName } });
+      if (et) requiredEquipmentLevel = et.requiredEquipmentLevel;
+    }
+
+    // Fetch all available ambulances with driver and provider info
     const ambulances = await prisma.ambulance.findMany({
       where: { status: 'available', lat: { not: null }, lng: { not: null } },
-      include: { driver: { select: { id: true, name: true, phone: true } }, hospital: true },
+      include: { 
+        driver: { select: { id: true, name: true, phone: true } }, 
+        assignedHospital: true,
+        provider: true
+      },
     });
 
     if (ambulances.length === 0) {
       throw new AppError('No ambulances available at this time', 503);
     }
 
-    // Rank by distance
+    // Score and rank ambulances based on distance and capabilities
     const ranked = ambulances
-      .map((amb) => ({
-        ambulance: amb,
-        distanceKm: haversineDistance(amb.lat!, amb.lng!, pickupLat, pickupLng),
-      }))
-      .sort((a, b) => a.distanceKm - b.distanceKm);
+      .map((amb) => {
+        const distanceKm = haversineDistance(amb.lat!, amb.lng!, pickupLat, pickupLng);
+        const etaSeconds = estimateTravelTime(distanceKm);
+        
+        // Capability Score: +100 if it meets requirements, penalty if it doesn't
+        let capabilityScore = 100;
+        if (amb.equipmentLevel < requiredEquipmentLevel) {
+          capabilityScore = 0; // Huge penalty for insufficient equipment
+        } else if (amb.equipmentLevel > requiredEquipmentLevel) {
+          capabilityScore += 20; // Bonus for advanced equipment
+        }
+
+        // ETA Score: 100 points max, minus 1 point per 30 seconds of ETA
+        const etaScore = Math.max(0, 100 - (etaSeconds / 30));
+        
+        // Total Score
+        const totalScore = capabilityScore + etaScore;
+
+        return {
+          ambulance: amb,
+          distanceKm,
+          etaSeconds,
+          totalScore,
+        };
+      })
+      // Must have capability > 0, then sort by highest total score
+      .filter((a) => a.totalScore > 0)
+      .sort((a, b) => b.totalScore - a.totalScore);
 
     const nearest = ranked[0];
-    const etaSeconds = estimateTravelTime(nearest.distanceKm);
+    const etaSeconds = nearest.etaSeconds;
+
+    // Determine the hospital to notify (assigned hospital, or find nearest hospital if null)
+    let targetHospitalId = nearest.ambulance.assignedHospitalId;
+    if (!targetHospitalId) {
+      // If it's a private/NGO ambulance without a base hospital, route them to the nearest hospital
+      const allHospitals = await prisma.hospital.findMany();
+      if (allHospitals.length > 0) {
+        const nearestHosp = allHospitals
+          .map(h => ({ id: h.id, dist: haversineDistance(pickupLat, pickupLng, h.lat, h.lng) }))
+          .sort((a, b) => a.dist - b.dist)[0];
+        targetHospitalId = nearestHosp.id;
+      }
+    }
 
     // Update ambulance status → dispatched
     await prisma.ambulance.update({
@@ -45,7 +92,7 @@ export const DispatchService = {
       where: { id: requestId },
       data: {
         ambulanceId: nearest.ambulance.id,
-        hospitalId: nearest.ambulance.hospitalId,
+        hospitalId: targetHospitalId,
         status: 'dispatched',
         estimatedEta: etaSeconds,
         dispatchedAt: new Date(),
@@ -90,19 +137,22 @@ export const DispatchService = {
       });
     }
 
-    // Notify hospital
-    io.to(`hospital:${nearest.ambulance.hospitalId}`).emit('hospital:incoming', {
-      requestId,
-      etaSeconds,
-      patient: {
-        name: updated.patientName,
-        age: updated.patientAge,
-        medicalNotes: updated.medicalNotes,
-        pickupLat,
-        pickupLng,
-      },
-      ambulancePlate: nearest.ambulance.plateNumber,
-    });
+    // Notify hospital (the target hospital where patient will be delivered)
+    if (targetHospitalId) {
+      io.to(`hospital:${targetHospitalId}`).emit('hospital:incoming', {
+        requestId,
+        etaSeconds,
+        patient: {
+          name: updated.patientName,
+          age: updated.patientAge,
+          medicalNotes: updated.medicalNotes,
+          pickupLat,
+          pickupLng,
+        },
+        ambulancePlate: nearest.ambulance.plateNumber,
+        providerName: nearest.ambulance.provider.name,
+      });
+    }
 
     // Persist notifications
     const notifPromises = [

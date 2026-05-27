@@ -2,13 +2,15 @@ import { useAuthStore } from '../../store/authStore';
 import CitizenNav from '../../components/layout/CitizenNav';
 import { useTheme } from '../../hooks/useTheme';
 import { SettingsIcon, LogOutIcon } from '../../components/common/Icons';
+import { useToast } from '../../components/common/ToastManager';
 
 export default function SettingsPage() {
   const { user, logout } = useAuthStore();
   const { theme, toggle } = useTheme();
+  const toast = useToast();
 
   return (
-    <div className="page" style={{ background: 'radial-gradient(ellipse at top,#071020 0%,var(--bg) 55%)' }}>
+    <div className="page">
       <div className="navbar">
         <div className="navbar__logo">
           <div className="navbar__logo-mark"><SettingsIcon size={18} /></div>
@@ -60,15 +62,57 @@ export default function SettingsPage() {
         <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.1em', padding: '0 4px' }}>Account</div>
         <div className="card">
           <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-            <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'linear-gradient(135deg,var(--primary-light),var(--teal))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, color: '#fff', fontSize: '1.1rem' }}>
+            <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, color: '#fff', fontSize: '1.1rem' }}>
               {user?.name?.charAt(0).toUpperCase()}
             </div>
             <div>
               <div style={{ fontWeight: 600 }}>{user?.name}</div>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-3)' }}>{user?.phone}</div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-3)' }}>{user?.email}</div>
+              {user?.phone && <div style={{ fontSize: '0.75rem', color: 'var(--text-3)', marginTop: 2 }}>{user.phone}</div>}
             </div>
           </div>
         </div>
+
+        {/* PWA / App Installation */}
+        <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.1em', padding: '0 4px' }}>App Installation</div>
+        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <div style={{ fontWeight: 600 }}>PWA Status</div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-3)', marginTop: 2 }}>
+                {window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone
+                  ? 'Installed (Running as App)'
+                  : 'Web Version (Install for offline use)'}
+              </div>
+            </div>
+            <span className={`badge badge--${window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone ? 'success' : 'neutral'}`}>
+              {window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone ? 'standalone' : 'browser'}
+            </span>
+          </div>
+          
+          {!(window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone) && (
+            <button
+              onClick={() => {
+                // If iOS, show manual drawer, else trigger standard beforeinstallprompt
+                const userAgent = window.navigator.userAgent.toLowerCase();
+                const isIOS = /iphone|ipad|ipod/.test(userAgent);
+                if (isIOS) {
+                  alert("To install MedLinka on iOS:\n1. Tap the Share button (📤) in Safari's bottom bar.\n2. Scroll down and choose 'Add to Home Screen' (➕).\n3. Tap 'Add' in the top-right corner.");
+                } else {
+                  // Dispatch custom event to notify InstallPrompt.tsx to show up again
+                  localStorage.removeItem('pwa-dismissed');
+                  window.dispatchEvent(new Event('beforeinstallprompt'));
+                  toast.success('Install Prompt Triggered', 'Look for the installation banner at the bottom');
+                }
+              }}
+              className="btn btn--primary btn--sm btn--full"
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 4 }}
+            >
+              <SettingsIcon size={14} /> Install MedLinka App
+            </button>
+          )}
+        </div>
+
         <button id="signout-btn" className="btn btn--ghost btn--full" onClick={() => logout()}
           style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, color: 'var(--crimson-light)', borderColor: 'rgba(211,47,47,0.3)' }}>
           <LogOutIcon size={16} /> Sign Out

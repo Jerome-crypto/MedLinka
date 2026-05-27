@@ -16,6 +16,7 @@ import sosRoutes from './modules/sos/sos.routes';
 import ambulanceRoutes from './modules/ambulance/ambulance.routes';
 import hospitalRoutes from './modules/hospital/hospital.routes';
 import reportsRoutes from './modules/reports/reports.routes';
+import providerRoutes from './modules/provider/provider.routes';
 
 const app = express();
 
@@ -58,11 +59,14 @@ app.use(morgan(config.nodeEnv === 'production' ? 'combined' : 'dev'));
 app.use(requestLogger);
 
 // ── Rate Limiters ──────────────────────────────────────────────────
+// Only apply strict rate limits in production to avoid dev lockouts
+const isProd = config.nodeEnv === 'production';
+
 app.use(
   '/api',
   rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 200,
+    max: isProd ? 200 : 5000, // 5000 requests per 15 min in dev
     standardHeaders: true,
     legacyHeaders: false,
     keyGenerator: (req) => req.ip || 'unknown',
@@ -73,7 +77,7 @@ app.use(
 // Auth brute-force protection
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 15,
+  max: isProd ? 15 : 1000, // 1000 auth attempts per 15 min in dev
   skipSuccessfulRequests: true,
   message: { success: false, message: 'Too many auth attempts. Please wait 15 minutes.' },
 });
@@ -107,6 +111,7 @@ app.use('/api/sos', sosRoutes);
 app.use('/api/ambulances', ambulanceRoutes);
 app.use('/api/hospitals', hospitalRoutes);
 app.use('/api/reports', reportsRoutes);
+app.use('/api/providers', providerRoutes);
 
 // ── 404 Handler ────────────────────────────────────────────────────
 app.use((_req, res) => {

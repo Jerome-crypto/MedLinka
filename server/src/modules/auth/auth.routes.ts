@@ -8,17 +8,19 @@ const router = Router();
 
 const registerSchema = z.object({
   body: z.object({
-    name:     z.string().trim().min(1, 'Name is required'),
-    phone:    z.string().trim().min(1, 'Phone is required'),
-    password: z.string().min(6, 'Password must be at least 6 characters'),
-    email:    z.string().email('Invalid email').optional().or(z.literal('')),
-    role:     z.enum(['citizen', 'driver', 'hospital_admin', 'admin']).optional(),
+    name:       z.string().trim().min(1, 'Name is required'),
+    email:      z.string().email('Invalid email'),
+    password:   z.string().min(6, 'Password must be at least 6 characters'),
+    phone:      z.string().trim().optional().or(z.literal('')),
+    role:       z.enum(['citizen', 'driver', 'hospital_admin', 'provider_manager', 'admin']).optional(),
+    providerId: z.string().uuid().optional(),
+    hospitalId: z.string().uuid().optional(),
   }),
 });
 
 const loginSchema = z.object({
   body: z.object({
-    phone:    z.string().trim().min(1, 'Phone is required'),
+    email:    z.string().email('Invalid email'),
     password: z.string().min(1, 'Password is required'),
   }),
 });
@@ -28,19 +30,19 @@ const refreshSchema = z.object({
 });
 
 const forgotPasswordSchema = z.object({
-  body: z.object({ phone: z.string().trim().min(1, 'Phone is required') }),
+  body: z.object({ email: z.string().email('Invalid email') }),
 });
 
 const verifyOtpSchema = z.object({
   body: z.object({
-    phone: z.string().trim().min(1),
+    email: z.string().email('Invalid email'),
     otp:   z.string().length(6, 'OTP must be 6 digits'),
   }),
 });
 
 const resetPasswordSchema = z.object({
   body: z.object({
-    phone:       z.string().trim().min(1),
+    email:       z.string().email('Invalid email'),
     otp:         z.string().length(6, 'OTP must be 6 digits'),
     newPassword: z.string().min(6, 'Password must be at least 6 characters'),
   }),

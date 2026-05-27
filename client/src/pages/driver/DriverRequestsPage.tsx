@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { useAuthStore } from '../../store/authStore';
 import { useSocket } from '../../hooks/useSocket';
@@ -8,6 +8,7 @@ import { sosApi } from '../../api/sos.api';
 import { ambulanceApi } from '../../api/ambulance.api';
 import { useGeolocation } from '../../hooks/useGeolocation';
 import { useToast } from '../../components/common/ToastManager';
+import { useTheme } from '../../hooks/useTheme';
 import BottomSheet from '../../components/common/BottomSheet';
 import { SkeletonCard } from '../../components/common/SkeletonLoader';
 import type { EmergencyRequest } from '../../types';
@@ -27,11 +28,40 @@ const STATUS_CFG: Record<AvailStatus, { label: string; color: string; bg: string
   offline:    { label: 'Offline',    color: 'var(--text-3)',      bg: 'var(--surface)'   },
 };
 
+const MapControls = ({ lat, lng }: { lat?: number | null; lng?: number | null }) => {
+  const map = useMap();
+  
+  const handleZoomIn = () => map.zoomIn();
+  const handleZoomOut = () => map.zoomOut();
+  const handleRecenter = () => {
+    if (lat && lng) {
+      map.setView([lat, lng], 14, { animate: true });
+    } else {
+      map.setView([0.3476, 32.5825], 7, { animate: true });
+    }
+  };
+
+  return (
+    <div style={{ position: 'absolute', right: '12px', bottom: '12px', zIndex: 1000, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      <button onClick={handleZoomIn} style={{ width: '38px', height: '38px', borderRadius: '50%', background: 'var(--bg-3)', border: '1px solid var(--border-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--shadow-md)', cursor: 'pointer', color: 'var(--text)', fontWeight: 600, fontSize: '1.2rem' }}>
+        ＋
+      </button>
+      <button onClick={handleZoomOut} style={{ width: '38px', height: '38px', borderRadius: '50%', background: 'var(--bg-3)', border: '1px solid var(--border-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--shadow-md)', cursor: 'pointer', color: 'var(--text)', fontWeight: 600, fontSize: '1.2rem' }}>
+        －
+      </button>
+      <button onClick={handleRecenter} style={{ width: '38px', height: '38px', borderRadius: '50%', background: 'var(--bg-3)', border: '1px solid var(--border-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--shadow-md)', cursor: 'pointer', color: 'var(--text)', fontSize: '1.1rem' }} title="Recenter">
+        🎯
+      </button>
+    </div>
+  );
+};
+
 export default function DriverRequestsPage() {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
   const { on } = useSocket();
   const toast = useToast();
+  const { isDark } = useTheme();
   const { lat, lng, getLocation } = useGeolocation(true);
 
   const [requests, setRequests]       = useState<EmergencyRequest[]>([]);
@@ -52,7 +82,7 @@ export default function DriverRequestsPage() {
     const interval = setInterval(getLocation, 10000);
     const off = on('driver:newRequest', (data: any) => {
       fetchRequests();
-      toast.info('🔔 New emergency request nearby!', data?.patientName ? `Patient: ${data.patientName}` : undefined);
+      toast.info('New emergency request nearby!', data?.patientName ? `Patient: ${data.patientName}` : undefined);
       if (data?.requestId) {
         sosApi.getById(data.requestId).then(res => {
           setSheetReq(res.data.data);
@@ -87,7 +117,7 @@ export default function DriverRequestsPage() {
   const pendingReq = requests.find(r => r.status === 'dispatched');
 
   return (
-    <div className="page" style={{ paddingBottom: 0, background: 'radial-gradient(ellipse at top,#0a1530 0%,var(--bg) 55%)' }}>
+    <div className="page" style={{ paddingBottom: 0 }}>
       <div className="navbar">
         <div className="navbar__logo">
           <div className="navbar__logo-mark"><AmbulanceIcon size={18} /></div>
@@ -107,18 +137,24 @@ export default function DriverRequestsPage() {
       <div style={{ position: 'relative', height: '52dvh' }}>
         <MapContainer center={lat && lng ? [lat, lng] : [0.3476, 32.5825]} zoom={lat && lng ? 14 : 7}
           style={{ height: '100%', width: '100%' }} zoomControl={false}>
-          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+          <TileLayer
+            url={isDark
+              ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+              : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png'}
+            attribution="© CartoDB"
+          />
           {lat && lng && <Marker position={[lat, lng]} icon={ambIcon}><Popup>Your position</Popup></Marker>}
           {requests.filter(r => ['pending','dispatched'].includes(r.status)).map(r => (
             <Marker key={r.id} position={[r.pickupLat, r.pickupLng]} icon={sosIcon}>
               <Popup>{r.patientName || 'Emergency'}<br />{r.pickupAddress || ''}</Popup>
             </Marker>
           ))}
+          <MapControls lat={lat} lng={lng} />
         </MapContainer>
 
         {/* Availability toggle overlay */}
         <div style={{ position: 'absolute', top: 12, left: 12, zIndex: 1000 }}>
-          <div style={{ display: 'flex', gap: 6, background: 'rgba(7,14,28,0.85)', backdropFilter: 'blur(12px)', borderRadius: 'var(--r-full)', padding: '6px 10px', border: '1px solid var(--border)' }}>
+          <div style={{ display: 'flex', gap: 6, background: 'var(--bg-2)', borderRadius: 'var(--r-full)', padding: '6px 10px', border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)' }}>
             <span style={{ width: 8, height: 8, borderRadius: '50%', background: cfg.color, display: 'inline-block', marginTop: 5, flexShrink: 0 }} />
             {(['available', 'busy', 'offline'] as AvailStatus[]).map(s => (
               <button key={s} onClick={() => handleAvailability(s)} disabled={updatingStatus || availability === s}
@@ -209,7 +245,7 @@ export default function DriverRequestsPage() {
       </div>
 
       {/* Incoming Request BottomSheet */}
-      <BottomSheet isOpen={sheetOpen} onClose={() => setSheetOpen(false)} title="🚨 Incoming Emergency Request">
+      <BottomSheet isOpen={sheetOpen} onClose={() => setSheetOpen(false)} title="Alert: Incoming Emergency Request">
         {sheetRequest && (() => {
           const typeMatch = sheetRequest.medicalNotes?.match(/^\[(\w+)\]/);
           const emergType = typeMatch?.[1] || null;

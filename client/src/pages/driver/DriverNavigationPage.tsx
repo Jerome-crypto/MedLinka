@@ -5,8 +5,10 @@ import L from 'leaflet';
 import { sosApi } from '../../api/sos.api';
 import { ambulanceApi } from '../../api/ambulance.api';
 import { useGeolocation } from '../../hooks/useGeolocation';
+import { useTheme } from '../../hooks/useTheme';
 import type { EmergencyRequest } from '../../types';
-import { AmbulanceIcon, ArrowLeftIcon, AlertTriangleIcon, MapPinIcon, NavigationIcon, CheckCircleIcon, ExternalLinkIcon, HospitalIcon, UserIcon } from '../../components/common/Icons';
+import { AmbulanceIcon, ArrowLeftIcon, AlertTriangleIcon, MapPinIcon, NavigationIcon, CheckCircleIcon, ExternalLinkIcon, HospitalIcon, UserIcon, SignalIcon } from '../../components/common/Icons';
+import { useSocket } from '../../hooks/useSocket';
 
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({ iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png', iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png', shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png' });
@@ -16,10 +18,44 @@ const ambIcon  = L.divIcon({ className: '', html: '<div style="background:#1565C
 
 const STEPS = ['Mark Arrived', 'Patient Picked', 'At Hospital', 'Complete Trip'];
 
-const FlyTo = ({ lat, lng }: { lat: number; lng: number }) => {
+const FitBounds = ({ pLat, pLng, aLat, aLng }: { pLat: number; pLng: number; aLat: number; aLng: number }) => {
   const map = useMap();
-  useEffect(() => { map.flyTo([lat, lng], map.getZoom()); }, [lat, lng, map]);
+  useEffect(() => {
+    if (pLat && pLng && aLat && aLng) {
+      const bounds = L.latLngBounds([[pLat, pLng], [aLat, aLng]]);
+      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16, animate: true, duration: 1.5 });
+    }
+  }, [pLat, pLng, aLat, aLng, map]);
   return null;
+};
+
+const MapControls = ({ pLat, pLng, aLat, aLng }: { pLat: number; pLng: number; aLat?: number; aLng?: number }) => {
+  const map = useMap();
+  
+  const handleZoomIn = () => map.zoomIn();
+  const handleZoomOut = () => map.zoomOut();
+  const handleRecenter = () => {
+    if (aLat && aLng) {
+      const bounds = L.latLngBounds([[pLat, pLng], [aLat, aLng]]);
+      map.fitBounds(bounds, { padding: [50, 50], animate: true, duration: 1.0 });
+    } else {
+      map.setView([pLat, pLng], 16, { animate: true });
+    }
+  };
+
+  return (
+    <div style={{ position: 'absolute', right: '12px', bottom: '12px', zIndex: 1000, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      <button onClick={handleZoomIn} style={{ width: '38px', height: '38px', borderRadius: '50%', background: 'var(--bg-3)', border: '1px solid var(--border-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--shadow-md)', cursor: 'pointer', color: 'var(--text)', fontWeight: 600, fontSize: '1.2rem' }}>
+        ＋
+      </button>
+      <button onClick={handleZoomOut} style={{ width: '38px', height: '38px', borderRadius: '50%', background: 'var(--bg-3)', border: '1px solid var(--border-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--shadow-md)', cursor: 'pointer', color: 'var(--text)', fontWeight: 600, fontSize: '1.2rem' }}>
+        －
+      </button>
+      <button onClick={handleRecenter} style={{ width: '38px', height: '38px', borderRadius: '50%', background: 'var(--bg-3)', border: '1px solid var(--border-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--shadow-md)', cursor: 'pointer', color: 'var(--text)', fontSize: '1.1rem' }} title="Recenter">
+        🎯
+      </button>
+    </div>
+  );
 };
 
 export default function DriverNavigationPage() {
@@ -28,6 +64,9 @@ export default function DriverNavigationPage() {
   const [request, setRequest] = useState<EmergencyRequest | null>(null);
   const [subStatus, setSubStatus] = useState<'arrived' | 'picked' | 'hospital'>('arrived');
   const { lat, lng, error: geoError, getLocation } = useGeolocation();
+  const { emit } = useSocket();
+  const { isDark } = useTheme();
+  const [routePoints, setRoutePoints] = useState<[number, number][]>([]);
 
   useEffect(() => {
     getLocation();
@@ -36,14 +75,39 @@ export default function DriverNavigationPage() {
   }, [getLocation]);
 
   useEffect(() => {
-    if (id) sosApi.getById(id).then(res => setRequest(res.data.data)).catch(console.error);
-  }, [id]);
+    if (id) {
+      sosApi.getById(id).then(res => setRequest(res.data.data)).catch(console.error);
+      emit('driver:joinRequest', id);
+    }
+  }, [id, emit]);
 
   useEffect(() => {
     if (lat && lng && request?.ambulanceId) {
       ambulanceApi.updateLocation(request.ambulanceId, lat, lng, id).catch(console.error);
+      emit('driver:location', { ambulanceId: request.ambulanceId, lat, lng, requestId: id });
     }
-  }, [lat, lng, request?.ambulanceId, id]);
+  }, [lat, lng, request?.ambulanceId, id, emit]);
+
+  // OSRM street route builder with polyline fallback
+  useEffect(() => {
+    if (lat && lng && request) {
+      fetch(`https://router.project-osrm.org/route/v1/driving/${lng},${lat};${request.pickupLng},${request.pickupLat}?overview=full&geometries=geojson`)
+        .then(r => r.json())
+        .then(data => {
+          if (data.routes && data.routes[0]) {
+            const coords = data.routes[0].geometry.coordinates.map((c: any) => [c[1], c[0]] as [number, number]);
+            setRoutePoints(coords);
+          } else {
+            setRoutePoints([[lat, lng], [request.pickupLat, request.pickupLng]]);
+          }
+        })
+        .catch(() => {
+          setRoutePoints([[lat, lng], [request.pickupLat, request.pickupLng]]);
+        });
+    } else {
+      setRoutePoints([]);
+    }
+  }, [lat, lng, request]);
 
   const handleUpdateStatus = async (status: string) => {
     if (!id) return;
@@ -70,6 +134,10 @@ export default function DriverNavigationPage() {
     ? subStatus === 'arrived' ? 0 : subStatus === 'picked' ? 1 : 2
     : -1;
 
+  const tileUrl = isDark
+    ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+    : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+
   return (
     <div className="page" style={{ paddingBottom: 0, display: 'flex', flexDirection: 'column' }}>
       <div className="navbar">
@@ -81,8 +149,8 @@ export default function DriverNavigationPage() {
           <div className="navbar__logo-text">Live <span>Navigation</span></div>
         </div>
         {lat && lng && (
-          <span style={{ fontSize: '0.7rem', color: 'var(--green-light)', fontWeight: 700, background: 'var(--green-bg)', padding: '3px 8px', borderRadius: 'var(--r-full)' }}>
-            📡 GPS Active
+          <span style={{ fontSize: '0.7rem', color: 'var(--green-light)', fontWeight: 700, background: 'var(--green-bg)', padding: '3px 8px', borderRadius: 'var(--r-full)', display: 'flex', alignItems: 'center', gap: 4 }}>
+            <SignalIcon size={12} /> GPS Active
           </span>
         )}
       </div>
@@ -97,17 +165,18 @@ export default function DriverNavigationPage() {
       <div style={{ flex: 1, position: 'relative' }}>
         <MapContainer center={[pickupLat, pickupLng]} zoom={16}
           style={{ height: '65dvh', width: '100%' }} zoomControl={false}>
-          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+          <TileLayer url={tileUrl} attribution="© CartoDB" />
           <Marker position={[pickupLat, pickupLng]} icon={personIcon}>
             <Popup>Pickup Location</Popup>
           </Marker>
           {lat && lng && (
             <>
               <Marker position={[lat, lng]} icon={ambIcon}><Popup>Your position</Popup></Marker>
-              <Polyline positions={[[lat, lng], [pickupLat, pickupLng]]} color="#1E88E5" weight={4} dashArray="8 4" />
-              <FlyTo lat={lat} lng={lng} />
+              <Polyline positions={routePoints.length > 0 ? routePoints : [[lat, lng], [pickupLat, pickupLng]]} color="#1E88E5" weight={4} dashArray="8 4" />
+              <FitBounds pLat={pickupLat} pLng={pickupLng} aLat={lat} aLng={lng} />
             </>
           )}
+          <MapControls pLat={pickupLat} pLng={pickupLng} aLat={lat ?? undefined} aLng={lng ?? undefined} />
         </MapContainer>
 
         {/* Floating glass panel */}
@@ -163,7 +232,7 @@ export default function DriverNavigationPage() {
               )}
               {request.status === 'arrived' && subStatus === 'hospital' && (
                 <button onClick={() => handleUpdateStatus('completed')} className="btn btn--success btn--full btn--lg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                  <CheckCircleIcon size={18} /> Complete Trip ✓
+                  <CheckCircleIcon size={18} /> Complete Trip
                 </button>
               )}
             </div>
