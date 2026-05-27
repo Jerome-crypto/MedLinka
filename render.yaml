@@ -19,9 +19,7 @@ services:
       - key: JWT_REFRESH_SECRET
         generateValue: true
       - key: CLIENT_URL
-        fromRoute:
-          type: web
-          name: medlinka-client
+        value: https://medlinka-client.onrender.com
 
   # 2. Frontend Vite React Static Site
   - type: web
@@ -33,13 +31,9 @@ services:
     staticPublishPath: dist
     envVars:
       - key: VITE_API_URL
-        fromRoute:
-          type: web
-          name: medlinka-server
+        value: https://medlinka-server.onrender.com
       - key: VITE_SOCKET_URL
-        fromRoute:
-          type: web
-          name: medlinka-server
+        value: https://medlinka-server.onrender.com
     routes:
       # Redirect/Rewrite rule for SPA React Router
       - type: rewrite
