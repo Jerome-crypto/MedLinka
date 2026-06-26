@@ -7,6 +7,11 @@ export const hospitalApi = {
   getById: (id: string) => apiClient.get<ApiResponse<Hospital>>(`/hospitals/${id}`),
   incoming: (id: string) => apiClient.get(`/hospitals/${id}/incoming`),
   createAdmin: (hospitalId: string, body: any) => apiClient.post<ApiResponse<any>>(`/hospitals/${hospitalId}/admins`, body),
+  getMyDrivers: () => apiClient.get<ApiResponse<any[]>>('/hospitals/mine/drivers'),
+  createDriver: (body: any) => apiClient.post<ApiResponse<any>>('/hospitals/mine/drivers', body),
+  getMyAmbulances: () => apiClient.get<ApiResponse<any[]>>('/hospitals/mine/ambulances'),
+  createAmbulance: (body: any) => apiClient.post<ApiResponse<any>>('/hospitals/mine/ambulances', body),
+  assignDriver: (id: string, driverId: string | null) => apiClient.patch<ApiResponse<any>>(`/hospitals/mine/ambulances/${id}/driver`, { driverId }),
 };
 
 export const reportsApi = {

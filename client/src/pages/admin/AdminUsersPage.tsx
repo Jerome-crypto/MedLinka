@@ -20,12 +20,13 @@ type RoleKey = keyof typeof ROLE_META;
 
 interface UserRecord { id: string; name: string; phone?: string; email: string; role: RoleKey; createdAt: string; }
 
-const BLANK = { name: '', phone: '', email: '', password: '', role: 'driver' as RoleKey, hospitalId: '' };
+const BLANK = { name: '', phone: '', email: '', password: '', role: 'driver' as RoleKey, hospitalId: '', providerId: '' };
 
 export default function AdminUsersPage() {
   const navigate = useNavigate();
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [hospitals, setHospitals] = useState<any[]>([]);
+  const [providers, setProviders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<RoleKey | 'all'>('all');
   const [showModal, setShowModal] = useState(false);
@@ -47,9 +48,17 @@ export default function AdminUsersPage() {
     } catch { }
   };
 
+  const fetchProviders = async () => {
+    try {
+      const res = await apiClient.get('/providers');
+      setProviders(res.data.data);
+    } catch { }
+  };
+
   useEffect(() => {
     fetchUsers();
     fetchHospitals();
+    fetchProviders();
   }, []);
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -62,10 +71,26 @@ export default function AdminUsersPage() {
           setSaving(false);
           return;
         }
-        const { hospitalId, ...body } = form;
+        const { providerId, hospitalId, ...body } = form;
         await hospitalApi.createAdmin(hospitalId, body);
+      } else if (form.role === 'provider_manager') {
+        if (!form.providerId) {
+          setFormError('Please select a provider for this manager');
+          setSaving(false);
+          return;
+        }
+        const { providerId, name, email, password, phone } = form;
+        await apiClient.post(`/providers/${providerId}/managers`, { name, email, password, phone });
       } else {
-        const { hospitalId, ...body } = form;
+        const body = {
+          name: form.name,
+          email: form.email,
+          password: form.password,
+          phone: form.phone || undefined,
+          role: form.role,
+          providerId: form.providerId || undefined,
+          hospitalId: form.hospitalId || undefined,
+        };
         await apiClient.post('/auth/register', body);
       }
       setShowModal(false);
@@ -161,7 +186,7 @@ export default function AdminUsersPage() {
             maxHeight: '90vh', overflowY: 'auto'
           }}>
             <h3>Create Staff Account</h3>
-            <p style={{ fontSize: '0.875rem', marginTop: '-8px' }}>Create driver or hospital admin accounts.</p>
+            <p style={{ fontSize: '0.875rem', marginTop: '-8px' }}>Create driver, hospital admin, or provider manager accounts.</p>
 
             {formError && (
               <div className="alert alert--error">
@@ -173,20 +198,34 @@ export default function AdminUsersPage() {
               <div className="form-group">
                 <label className="form-label">Role</label>
                 <select className="form-input" value={form.role}
-                  onChange={(e) => setForm({ ...form, role: e.target.value as RoleKey })}>
+                  onChange={(e) => setForm({ ...form, role: e.target.value as RoleKey, hospitalId: '', providerId: '' })}>
                   <option value="driver">Driver</option>
                   <option value="hospital_admin">Hospital Admin</option>
+                  <option value="provider_manager">Provider Manager</option>
                 </select>
               </div>
 
-              {form.role === 'hospital_admin' && (
+              {(form.role === 'hospital_admin' || form.role === 'driver') && (
                 <div className="form-group animate-fade">
-                  <label className="form-label">Associate Hospital *</label>
-                  <select className="form-input" required value={form.hospitalId}
+                  <label className="form-label">Associate Hospital {form.role === 'hospital_admin' ? '*' : '(Optional)'}</label>
+                  <select className="form-input" required={form.role === 'hospital_admin'} value={form.hospitalId}
                     onChange={(e) => setForm({ ...form, hospitalId: e.target.value })}>
                     <option value="">Select Hospital</option>
                     {hospitals.map(h => (
                       <option key={h.id} value={h.id}>{h.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {(form.role === 'provider_manager' || form.role === 'driver') && (
+                <div className="form-group animate-fade">
+                  <label className="form-label">Associate Provider {form.role === 'provider_manager' ? '*' : '(Optional)'}</label>
+                  <select className="form-input" required={form.role === 'provider_manager'} value={form.providerId}
+                    onChange={(e) => setForm({ ...form, providerId: e.target.value })}>
+                    <option value="">Select Provider</option>
+                    {providers.map(p => (
+                      <option key={p.id} value={p.id}>{p.name} ({p.type})</option>
                     ))}
                   </select>
                 </div>

@@ -9,6 +9,7 @@ export type RequestStatus =
   | 'dispatched'
   | 'in_progress'
   | 'arrived'
+  | 'in_transit'
   | 'completed'
   | 'cancelled';
 

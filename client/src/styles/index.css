@@ -199,6 +199,7 @@ textarea.form-input{resize:vertical;min-height:80px;}
 .badge--pending{color:var(--amber-light);background:var(--amber-bg);border-color:rgba(251,140,0,0.2);}
 .badge--dispatched{color:var(--blue-info);background:var(--blue-info-bg);border-color:rgba(2,136,209,0.2);}
 .badge--in_progress{color:var(--primary);background:var(--primary-glow);border-color:rgba(25,118,210,0.2);}
+.badge--in_transit{color:var(--primary-light);background:var(--primary-glow);border-color:var(--primary-light);animation:pulse 2s ease-in-out infinite;}
 .badge--arrived{color:var(--green);background:var(--green-bg);border-color:rgba(67,160,71,0.2);}
 .badge--completed{color:var(--green);background:var(--green-bg);border-color:rgba(67,160,71,0.2);}
 .badge--cancelled{color:var(--text-3);background:var(--surface-2);border-color:var(--border);}

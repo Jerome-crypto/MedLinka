@@ -74,7 +74,7 @@ export const HospitalService = {
     return prisma.emergencyRequest.findMany({
       where: {
         hospitalId,
-        status: { in: ['dispatched', 'in_progress'] },
+        status: { in: ['dispatched', 'in_progress', 'arrived', 'in_transit'] },
       },
       include: {
         citizen: { select: { name: true, phone: true } },

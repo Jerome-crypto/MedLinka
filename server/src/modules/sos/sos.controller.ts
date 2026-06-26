@@ -49,4 +49,11 @@ export const SosController = {
       sendSuccess(res, updated, 'Request acknowledged');
     } catch (err) { next(err); }
   },
+
+  async createDirectTransport(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const request = await SosService.createDirectTransport({ driverId: req.user!.id, ...req.body });
+      sendCreated(res, request, 'Direct transport request created successfully');
+    } catch (err) { next(err); }
+  },
 };

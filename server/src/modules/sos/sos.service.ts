@@ -177,5 +177,70 @@ export const SosService = {
       select: { id: true, status: true, acknowledgedAt: true },
     });
   },
+
+  async createDirectTransport(dto: {
+    driverId: string;
+    hospitalId: string;
+    pickupLat: number;
+    pickupLng: number;
+    pickupAddress?: string;
+    patientName?: string;
+    patientAge?: number;
+    medicalNotes?: string;
+  }) {
+    const ambulance = await prisma.ambulance.findFirst({
+      where: { driverId: dto.driverId },
+      include: { provider: true },
+    });
+    if (!ambulance) throw new AppError('No ambulance assigned to this driver', 400);
+
+    const request = await prisma.emergencyRequest.create({
+      data: {
+        citizenId: dto.driverId,
+        hospitalId: dto.hospitalId,
+        ambulanceId: ambulance.id,
+        status: 'in_transit',
+        pickupLat: dto.pickupLat,
+        pickupLng: dto.pickupLng,
+        pickupAddress: dto.pickupAddress || 'Direct Transport Pickup',
+        patientName: dto.patientName,
+        patientAge: dto.patientAge,
+        medicalNotes: dto.medicalNotes,
+        dispatchedAt: new Date(),
+        estimatedEta: 600,
+      },
+      include: {
+        citizen: { select: { id: true, name: true, phone: true } },
+        ambulance: { include: { driver: { select: { id: true, name: true, phone: true } } } },
+        hospital: true,
+      },
+    });
+
+    await prisma.ambulance.update({
+      where: { id: ambulance.id },
+      data: { status: 'dispatched' },
+    });
+
+    try {
+      const io = getIO();
+      io.to(`hospital:${dto.hospitalId}`).emit('hospital:incoming', {
+        requestId: request.id,
+        etaSeconds: 600,
+        patient: {
+          name: request.patientName,
+          age: request.patientAge,
+          medicalNotes: request.medicalNotes,
+          pickupLat: dto.pickupLat,
+          pickupLng: dto.pickupLng,
+        },
+        ambulancePlate: ambulance.plateNumber,
+        providerName: ambulance.provider.name,
+      });
+    } catch (err: any) {
+      logger.warn(`Failed to broadcast direct transport via socket: ${err.message}`);
+    }
+
+    return request;
+  },
 };
 

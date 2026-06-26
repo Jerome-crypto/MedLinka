@@ -6,6 +6,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useSocket } from '../../hooks/useSocket';
 import { sosApi } from '../../api/sos.api';
 import { ambulanceApi } from '../../api/ambulance.api';
+import { hospitalApi } from '../../api/hospital.api';
 import { useGeolocation } from '../../hooks/useGeolocation';
 import { useToast } from '../../components/common/ToastManager';
 import { useTheme } from '../../hooks/useTheme';
@@ -71,13 +72,32 @@ export default function DriverRequestsPage() {
   const [sheetRequest, setSheetReq]   = useState<EmergencyRequest | null>(null);
   const [sheetOpen, setSheetOpen]     = useState(false);
 
+  // Direct transport states
+  const [hospitals, setHospitals] = useState<any[]>([]);
+  const [showDirectTransport, setShowDirectTransport] = useState(false);
+  const [submittingDirect, setSubmittingDirect] = useState(false);
+  const [directForm, setDirectForm] = useState({
+    hospitalId: '',
+    patientName: '',
+    patientAge: '',
+    medicalNotes: '',
+  });
+
   const fetchRequests = async () => {
     try { const res = await sosApi.list(); setRequests(res.data.data.requests); }
     catch { } finally { setLoading(false); }
   };
 
+  const fetchHospitals = async () => {
+    try {
+      const res = await hospitalApi.list();
+      setHospitals(res.data.data);
+    } catch {}
+  };
+
   useEffect(() => {
     fetchRequests();
+    fetchHospitals();
     getLocation();
     const interval = setInterval(getLocation, 10000);
     const off = on('driver:newRequest', (data: any) => {
@@ -92,6 +112,39 @@ export default function DriverRequestsPage() {
     });
     return () => { off(); clearInterval(interval); };
   }, []);
+
+  const handleDirectTransport = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!directForm.hospitalId) {
+      toast.error('Please select a target hospital');
+      return;
+    }
+    if (!lat || !lng) {
+      toast.error('GPS coordinates unavailable. Make sure location access is allowed.');
+      return;
+    }
+    setSubmittingDirect(true);
+    try {
+      const body = {
+        hospitalId: directForm.hospitalId,
+        pickupLat: lat,
+        pickupLng: lng,
+        patientName: directForm.patientName || undefined,
+        patientAge: directForm.patientAge ? parseInt(directForm.patientAge) : undefined,
+        medicalNotes: directForm.medicalNotes || undefined,
+      };
+      const res = await sosApi.createDirectTransport(body);
+      if (res.data.success) {
+        toast.success('Direct transport initiated successfully');
+        setShowDirectTransport(false);
+        navigate(`/driver/navigation/${res.data.data.id}`);
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to initiate direct transport');
+    } finally {
+      setSubmittingDirect(false);
+    }
+  };
 
   const handleAvailability = async (status: AvailStatus) => {
     setUpdating(true);
@@ -176,7 +229,11 @@ export default function DriverRequestsPage() {
 
       {/* Assignment list */}
       <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: 12, overflowY: 'auto' }}>
-        <h3 style={{ marginBottom: 0 }}>My Assignments</h3>
+        <button onClick={() => setShowDirectTransport(true)} className="btn btn--danger btn--lg btn--full" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontWeight: 800 }}>
+          🚨 Initiate Direct Transport
+        </button>
+
+        <h3 style={{ marginBottom: 0, marginTop: 8 }}>My Assignments</h3>
 
         {availability === 'offline' && (
           <div className="alert alert--warning">
@@ -289,6 +346,51 @@ export default function DriverRequestsPage() {
           );
         })()}
       </BottomSheet>
+
+      {/* MODAL: Direct Transport */}
+      {showDirectTransport && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9000, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }} onClick={() => setShowDirectTransport(false)}>
+          <div className="card card--elevated animate-fade" style={{ width: '100%', maxWidth: '450px', borderRadius: 'var(--r-xl) var(--r-xl) 0 0', padding: '28px 24px 40px', display: 'flex', flexDirection: 'column', gap: '14px' }} onClick={e => e.stopPropagation()}>
+            <h3 style={{ margin: 0 }}>🚨 Initiate Direct Transport</h3>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-3)', margin: 0 }}>
+              Use this if you are actively carrying a patient and need to notify the target hospital.
+            </p>
+            <form onSubmit={handleDirectTransport} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div className="form-group">
+                <label className="form-label">Target Hospital *</label>
+                <select className="form-input" required value={directForm.hospitalId}
+                  onChange={e => setDirectForm({ ...directForm, hospitalId: e.target.value })}>
+                  <option value="">Select Hospital</option>
+                  {hospitals.map(h => (
+                    <option key={h.id} value={h.id}>{h.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Patient Name (Optional)</label>
+                <input className="form-input" placeholder="e.g. John Doe"
+                  value={directForm.patientName} onChange={e => setDirectForm({ ...directForm, patientName: e.target.value })} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Patient Age (Optional)</label>
+                <input className="form-input" type="number" placeholder="e.g. 45"
+                  value={directForm.patientAge} onChange={e => setDirectForm({ ...directForm, patientAge: e.target.value })} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Medical Notes / Emergency Type</label>
+                <textarea className="form-input" placeholder="e.g. [Trauma] Severe bleeding from arm"
+                  value={directForm.medicalNotes} onChange={e => setDirectForm({ ...directForm, medicalNotes: e.target.value })} />
+              </div>
+              <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+                <button type="button" onClick={() => setShowDirectTransport(false)} className="btn btn--ghost flex-1">Cancel</button>
+                <button type="submit" className="btn btn--danger flex-1" disabled={submittingDirect}>
+                  {submittingDirect ? <span className="spinner" style={{ borderTopColor: '#fff' }} /> : 'Start Transport'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

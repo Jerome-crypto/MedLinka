@@ -11,6 +11,16 @@ export const sosApi = {
     medicalNotes?: string;
   }) => apiClient.post<ApiResponse<EmergencyRequest>>('/sos', data),
 
+  createDirectTransport: (data: {
+    hospitalId: string;
+    pickupLat: number;
+    pickupLng: number;
+    pickupAddress?: string;
+    patientName?: string;
+    patientAge?: number;
+    medicalNotes?: string;
+  }) => apiClient.post<ApiResponse<EmergencyRequest>>('/sos/direct-transport', data),
+
   list: (page = 1, limit = 20) =>
     apiClient.get<ApiResponse<{ requests: EmergencyRequest[]; total: number; totalPages: number }>>(
       `/sos?page=${page}&limit=${limit}`

@@ -17,6 +17,7 @@ import ambulanceRoutes from './modules/ambulance/ambulance.routes';
 import hospitalRoutes from './modules/hospital/hospital.routes';
 import reportsRoutes from './modules/reports/reports.routes';
 import providerRoutes from './modules/provider/provider.routes';
+import adminRoutes from './modules/admin/admin.routes';
 
 const app = express();
 
@@ -112,6 +113,7 @@ app.use('/api/ambulances', ambulanceRoutes);
 app.use('/api/hospitals', hospitalRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/providers', providerRoutes);
+app.use('/api/admin', adminRoutes);
 
 // ── 404 Handler ────────────────────────────────────────────────────
 app.use((_req, res) => {

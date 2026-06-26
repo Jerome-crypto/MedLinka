@@ -42,4 +42,34 @@ router.post(
 router.patch('/:id', authorize('admin'), HospitalController.update);
 router.post('/:id/admins', authorize('admin'), validate(createHospitalAdminSchema), HospitalController.createAdmin);
 
+// Hospital Admin Fleet & Driver Management
+const createDriverSchema = z.object({
+  body: z.object({
+    name: z.string().trim().min(1, 'Name is required'),
+    email: z.string().email('Invalid email'),
+    password: z.string().min(6, 'Password must be at least 6 characters'),
+    phone: z.string().trim().optional(),
+  }),
+});
+
+const registerAmbulanceSchema = z.object({
+  body: z.object({
+    plateNumber: z.string().trim().min(1, 'Plate number required'),
+    ambulanceType: z.string().optional(),
+    equipmentLevel: z.number().int().min(1).optional(),
+  }),
+});
+
+const assignDriverSchema = z.object({
+  body: z.object({
+    driverId: z.string().uuid().optional().nullable(),
+  }),
+});
+
+router.get('/mine/drivers', authorize('hospital_admin'), HospitalController.getMyDrivers);
+router.post('/mine/drivers', authorize('hospital_admin'), validate(createDriverSchema), HospitalController.createMyDriver);
+router.get('/mine/ambulances', authorize('hospital_admin'), HospitalController.getMyAmbulances);
+router.post('/mine/ambulances', authorize('hospital_admin'), validate(registerAmbulanceSchema), HospitalController.createMyAmbulance);
+router.patch('/mine/ambulances/:id/driver', authorize('hospital_admin'), validate(assignDriverSchema), HospitalController.assignMyDriver);
+
 export default router;

@@ -16,7 +16,7 @@ L.Icon.Default.mergeOptions({ iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/di
 const personIcon = L.divIcon({ className: '', html: '<div style="background:#D32F2F;border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 12px rgba(211,47,47,0.5);border:2px solid #EF5350"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg></div>', iconSize: [34, 34], iconAnchor: [17, 34] });
 const ambIcon  = L.divIcon({ className: '', html: '<div style="background:#1565C0;border-radius:50%;width:40px;height:40px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 12px rgba(21,101,192,0.5);border:2px solid #1E88E5"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="16" height="11" rx="1.5"/><path d="M18 12h3l1 4v2h-4"/><circle cx="6.5" cy="19.5" r="1.5"/><circle cx="15.5" cy="19.5" r="1.5"/></svg></div>', iconSize: [40, 40], iconAnchor: [20, 20] });
 
-const STEPS = ['Mark Arrived', 'Patient Picked', 'At Hospital', 'Complete Trip'];
+const STEPS = ['En Route', 'At Patient Scene', 'In Transit to Hospital', 'Completed'];
 
 const FitBounds = ({ pLat, pLng, aLat, aLng }: { pLat: number; pLng: number; aLat: number; aLng: number }) => {
   const map = useMap();
@@ -130,8 +130,10 @@ export default function DriverNavigationPage() {
   const typeMatch = request.medicalNotes?.match(/^\[(\w+)\]/);
   const emergType = typeMatch?.[1] || null;
 
-  const stepIndex = request.status === 'arrived'
-    ? subStatus === 'arrived' ? 0 : subStatus === 'picked' ? 1 : 2
+  const stepIndex = request.status === 'in_progress' ? 0
+    : request.status === 'arrived' ? 1
+    : request.status === 'in_transit' ? 2
+    : request.status === 'completed' ? 3
     : -1;
 
   const tileUrl = isDark
@@ -220,19 +222,14 @@ export default function DriverNavigationPage() {
                   <MapPinIcon size={18} /> Mark Arrived at Scene
                 </button>
               )}
-              {request.status === 'arrived' && subStatus === 'arrived' && (
-                <button onClick={() => setSubStatus('picked')} className="btn btn--teal btn--full btn--lg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                  <CheckCircleIcon size={18} /> Patient Picked Up
+              {request.status === 'arrived' && (
+                <button onClick={() => handleUpdateStatus('in_transit')} className="btn btn--teal btn--full btn--lg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                  <CheckCircleIcon size={18} /> Patient Picked Up (Start Transport)
                 </button>
               )}
-              {request.status === 'arrived' && subStatus === 'picked' && (
-                <button onClick={() => setSubStatus('hospital')} className="btn btn--primary btn--full btn--lg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                  <HospitalIcon size={18} /> Arrived At Hospital
-                </button>
-              )}
-              {request.status === 'arrived' && subStatus === 'hospital' && (
+              {request.status === 'in_transit' && (
                 <button onClick={() => handleUpdateStatus('completed')} className="btn btn--success btn--full btn--lg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                  <CheckCircleIcon size={18} /> Complete Trip
+                  <HospitalIcon size={18} /> Arrived at Hospital (Complete Trip)
                 </button>
               )}
             </div>
