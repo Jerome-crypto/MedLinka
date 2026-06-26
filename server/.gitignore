@@ -1,6 +1,1 @@
-node_modules/
-dist/
-logs/
-*.log
-.env
-coverage/
+# Git ignore rules removed so the full project state can be moved between machines intact.
