@@ -1,13 +1,17 @@
-import { useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useSosStore } from '../../store/sosStore';
 import CitizenNav from '../../components/layout/CitizenNav';
 import { SkeletonHistoryCard } from '../../components/common/SkeletonLoader';
 import { format, formatDistanceStrict } from 'date-fns';
-import { FolderIcon, MapPinIcon, HospitalIcon, ClockIcon } from '../../components/common/Icons';
+import { FolderIcon, MapPinIcon, HospitalIcon, ClockIcon, CarCrashIcon, AmbulanceIcon, BabyIcon, FlameIcon, SosIcon } from '../../components/common/Icons';
 
-const TYPE_EMOJI: Record<string, string> = {
-  ACCIDENT: '💥', MEDICAL: '🚑', MATERNAL: '🤱', FIRE: '🔥', OTHER: '🆘',
+const TYPE_ICON: Record<string, React.ReactNode> = {
+  ACCIDENT: <CarCrashIcon size={15} />,
+  MEDICAL:  <AmbulanceIcon size={15} />,
+  MATERNAL: <BabyIcon size={15} />,
+  FIRE:     <FlameIcon size={15} />,
+  OTHER:    <SosIcon size={15} />,
 };
 
 function getDuration(req: any): string {
@@ -62,7 +66,7 @@ export default function HistoryPage() {
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
                     <span className={`badge badge--${req.status}`}>{req.status.replace('_', ' ')}</span>
                     {emergType && (
-                      <span style={{ fontSize: '0.9rem' }}>{TYPE_EMOJI[emergType] || '🆘'}</span>
+                      <span style={{ display: 'flex', alignItems: 'center', color: 'var(--crimson-light)' }}>{TYPE_ICON[emergType] || <SosIcon size={15} />}</span>
                     )}
                     {emergType && (
                       <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-2)' }}>{emergType}</span>

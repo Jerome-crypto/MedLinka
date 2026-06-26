@@ -85,3 +85,34 @@ export const SignalIcon = ico('M2 20h.01M7 20v-4M12 20v-8M17 20V8M22 4v16');
 export const ZapIcon = ico('M13 2L3 14h9l-1 8 10-12h-9l1-8z');
 export const ActivityIcon = ico('M22 12h-4l-3 9L9 3l-3 9H2');
 export const TruckIcon = ico('M1 3h15v13H1zM16 8h4l3 3v5h-7V8zM5.5 18.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5zM17.5 18.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z');
+export const CrosshairIcon = ico('M12 22a10 10 0 100-20 10 10 0 000 20zM22 12h-4M6 12H2M12 6V2M12 22v-4');
+export const AlertSirenIcon = ({ size = 20, className, style }: IconProps) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+    stroke="currentColor" strokeWidth={1.8} strokeLinecap="round"
+    strokeLinejoin="round" className={className} style={style}>
+    <path d="M12 2L4 9v4h16V9L12 2z" />
+    <path d="M4 13v5a1 1 0 001 1h14a1 1 0 001-1v-5" />
+    <path d="M9 18v3M15 18v3" />
+    <path d="M12 6v4M12 11h.01" strokeWidth={2} />
+  </svg>
+);
+export const FlameIcon = ico('M12 23c-4.4 0-8-3.6-8-8 0-5.3 5.2-9.5 7-14 1.5 3 3 5 3 8 1.5-1.5 2-3 2-5.5 2 2 3 5 3 7.5 0 4.4-3.6 8-8 8z');
+export const CarCrashIcon = ({ size = 20, className, style }: IconProps) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+    stroke="currentColor" strokeWidth={1.8} strokeLinecap="round"
+    strokeLinejoin="round" className={className} style={style}>
+    <path d="M5 17H3v-7l2-3h12l2 3v7h-2M5 17h10M5 17a2 2 0 100 4 2 2 0 000-4zM15 17a2 2 0 100 4 2 2 0 000-4z" />
+    <path d="M9 5L7 2M15 5l2-2" strokeWidth={2} />
+  </svg>
+);
+export const BabyIcon = ico('M9 12a3 3 0 100-6 3 3 0 000 6zM17.5 6.5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM5 20a9 9 0 0118 0H5z');
+export const SosIcon = ({ size = 20, className, style }: IconProps) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+    stroke="currentColor" strokeWidth={1.8} strokeLinecap="round"
+    strokeLinejoin="round" className={className} style={style}>
+    <circle cx="12" cy="12" r="10" />
+    <path d="M8 12h8M12 8v8" strokeWidth={2.5} />
+  </svg>
+);
+export const UserCircleIcon = ico('M12 22c5.52 0 10-4.48 10-10S17.52 2 12 2 2 6.48 2 12s4.48 10 10 10zM12 13a4 4 0 100-8 4 4 0 000 8zM4.5 19.5a8 8 0 0115 0');
+export const LinkIcon = ico('M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71');

@@ -1,7 +1,7 @@
 import { useState, FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
-import { AmbulanceIcon, AlertTriangleIcon, UserIcon, ShieldCrossIcon, HospitalIcon } from '../../components/common/Icons';
+import { AmbulanceIcon, AlertTriangleIcon, UserIcon, ShieldCrossIcon, HospitalIcon, AlertSirenIcon, UserCircleIcon } from '../../components/common/Icons';
 
 function LockIcon() {
   return <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>;
@@ -49,7 +49,7 @@ export default function LoginPage() {
   return (
     <div className="auth-page">
       <div style={{ width: '100%', maxWidth: 400, padding: '10px 16px', background: 'rgba(211,47,47,0.12)', border: '1px solid rgba(211,47,47,0.3)', borderRadius: 'var(--r-lg)', display: 'flex', alignItems: 'center', gap: 10, marginBottom: -8 }}>
-        <span style={{ fontSize: '1.1rem' }}>🚨</span>
+        <span style={{ color: 'var(--crimson-light)', flexShrink: 0 }}><AlertSirenIcon size={16} /></span>
         <span style={{ fontSize: '0.8rem', color: 'var(--crimson-light)', fontWeight: 600 }}>In a life-threatening emergency, call <strong>999</strong> immediately.</span>
       </div>
       <div className="auth-logo">
@@ -61,7 +61,7 @@ export default function LoginPage() {
       </div>
       {roleInfo && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 16px', borderRadius: 'var(--r-full)', background: 'var(--surface)', border: '1px solid var(--border-2)', color: roleInfo.color, fontSize: '0.8rem', fontWeight: 600, marginBottom: -12 }}>
-          <span>👤</span> Signing in as {roleInfo.label}
+          <UserCircleIcon size={14} /> Signing in as {roleInfo.label}
         </div>
       )}
       <div className="auth-card animate-scale">

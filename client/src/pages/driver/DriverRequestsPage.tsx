@@ -14,7 +14,7 @@ import BottomSheet from '../../components/common/BottomSheet';
 import { SkeletonCard } from '../../components/common/SkeletonLoader';
 import type { EmergencyRequest } from '../../types';
 import { format } from 'date-fns';
-import { AmbulanceIcon, BellIcon, MapPinIcon, UserIcon, LogOutIcon, NavigationIcon, CheckCircleIcon, ClockIcon, AlertTriangleIcon } from '../../components/common/Icons';
+import { AmbulanceIcon, BellIcon, MapPinIcon, UserIcon, LogOutIcon, NavigationIcon, CheckCircleIcon, ClockIcon, AlertTriangleIcon, CrosshairIcon, AlertSirenIcon } from '../../components/common/Icons';
 
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({ iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png', iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png', shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png' });
@@ -51,7 +51,7 @@ const MapControls = ({ lat, lng }: { lat?: number | null; lng?: number | null })
         －
       </button>
       <button onClick={handleRecenter} style={{ width: '38px', height: '38px', borderRadius: '50%', background: 'var(--bg-3)', border: '1px solid var(--border-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--shadow-md)', cursor: 'pointer', color: 'var(--text)', fontSize: '1.1rem' }} title="Recenter">
-        🎯
+        <CrosshairIcon size={16} />
       </button>
     </div>
   );
@@ -230,7 +230,7 @@ export default function DriverRequestsPage() {
       {/* Assignment list */}
       <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: 12, overflowY: 'auto' }}>
         <button onClick={() => setShowDirectTransport(true)} className="btn btn--danger btn--lg btn--full" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontWeight: 800 }}>
-          🚨 Initiate Direct Transport
+          <AlertSirenIcon size={18} /> Initiate Direct Transport
         </button>
 
         <h3 style={{ marginBottom: 0, marginTop: 8 }}>My Assignments</h3>
@@ -351,7 +351,7 @@ export default function DriverRequestsPage() {
       {showDirectTransport && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 9000, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }} onClick={() => setShowDirectTransport(false)}>
           <div className="card card--elevated animate-fade" style={{ width: '100%', maxWidth: '450px', borderRadius: 'var(--r-xl) var(--r-xl) 0 0', padding: '28px 24px 40px', display: 'flex', flexDirection: 'column', gap: '14px' }} onClick={e => e.stopPropagation()}>
-            <h3 style={{ margin: 0 }}>🚨 Initiate Direct Transport</h3>
+            <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}><AlertSirenIcon size={18} style={{ color: 'var(--crimson-light)' }} /> Initiate Direct Transport</h3>
             <p style={{ fontSize: '0.85rem', color: 'var(--text-3)', margin: 0 }}>
               Use this if you are actively carrying a patient and need to notify the target hospital.
             </p>

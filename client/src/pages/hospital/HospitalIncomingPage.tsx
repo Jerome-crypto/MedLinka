@@ -11,7 +11,7 @@ import { SkeletonCard } from '../../components/common/SkeletonLoader';
 import type { EmergencyRequest, HospitalIncomingEvent } from '../../types';
 import { sosApi } from '../../api/sos.api';
 import { format } from 'date-fns';
-import { HospitalIcon, BedIcon, AmbulanceIcon, AlertTriangleIcon, UserIcon, ClockIcon, LogOutIcon, CheckCircleIcon, RefreshIcon } from '../../components/common/Icons';
+import { HospitalIcon, BedIcon, AmbulanceIcon, AlertTriangleIcon, UserIcon, ClockIcon, LogOutIcon, CheckCircleIcon, RefreshIcon, AlertSirenIcon, FleetIcon, CrosshairIcon, XCircleIcon, PhoneIcon, LinkIcon } from '../../components/common/Icons';
 
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({ iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png', iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png', shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png' });
@@ -36,7 +36,7 @@ const MapControls = ({ lat, lng }: { lat: number; lng: number }) => {
         －
       </button>
       <button onClick={handleRecenter} style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--bg-3)', border: '1px solid var(--border-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--shadow-sm)', cursor: 'pointer', color: 'var(--text)', fontSize: '0.95rem' }} title="Recenter">
-        🎯
+        <CrosshairIcon size={14} />
       </button>
     </div>
   );
@@ -210,18 +210,20 @@ export default function HospitalIncomingPage() {
             padding: '14px 20px', background: 'none', border: 'none',
             borderBottom: activeTab === 'incoming' ? '3px solid var(--primary)' : 'none',
             color: activeTab === 'incoming' ? 'var(--primary-light)' : 'var(--text-3)',
-            fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s', fontSize: '0.9rem'
+            fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s', fontSize: '0.9rem',
+            display: 'flex', alignItems: 'center', gap: 6
           }}>
-          🚨 Incoming Patients ({patients.length})
+          <AlertSirenIcon size={15} /> Incoming Patients ({patients.length})
         </button>
         <button onClick={() => setActiveTab('fleet')}
           style={{
             padding: '14px 20px', background: 'none', border: 'none',
             borderBottom: activeTab === 'fleet' ? '3px solid var(--primary)' : 'none',
             color: activeTab === 'fleet' ? 'var(--primary-light)' : 'var(--text-3)',
-            fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s', fontSize: '0.9rem'
+            fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s', fontSize: '0.9rem',
+            display: 'flex', alignItems: 'center', gap: 6
           }}>
-          🚑 Fleet & Personnel
+          <FleetIcon size={15} /> Fleet & Personnel
         </button>
       </div>
 
@@ -328,13 +330,13 @@ export default function HospitalIncomingPage() {
                         className={`btn btn--sm flex-1 ${isAck ? 'btn--success' : 'btn--primary'}`}
                         disabled={isAck}
                         style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                        <BedIcon size={15} /> {isAck ? '✓ Bed Ready' : 'Mark Bed Ready'}
+                        <BedIcon size={15} /> {isAck ? 'Bed Ready' : 'Mark Bed Ready'}
                       </button>
                       <button onClick={() => !isAck && handleAcknowledge(req.id)}
                         className={`btn btn--sm flex-1 ${isAck ? 'btn--success' : 'btn--ghost'}`}
                         disabled={isAck}
                         style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                        <CheckCircleIcon size={15} /> {isAck ? '✓ ER Prepared' : 'Mark ER Prepared'}
+                        <CheckCircleIcon size={15} /> {isAck ? 'ER Prepared' : 'Mark ER Prepared'}
                       </button>
                     </div>
                   </div>
@@ -370,13 +372,22 @@ export default function HospitalIncomingPage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <h4 style={{ margin: 0 }}>Ambulance Fleet</h4>
-                  <button onClick={() => setShowAddAmbulance(true)} className="btn btn--primary btn--sm">+ Register Ambulance</button>
+                  <button onClick={() => setShowAddAmbulance(true)} className="btn btn--primary btn--sm" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <AmbulanceIcon size={13} /> Register Ambulance
+                  </button>
+                </div>
+
+                {/* Info callout explaining the relationship */}
+                <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', padding: '10px 12px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r-md)', fontSize: '0.8rem', color: 'var(--text-3)' }}>
+                  <LinkIcon size={14} style={{ flexShrink: 0, marginTop: 1, color: 'var(--primary-light)' }} />
+                  <span>An <strong style={{ color: 'var(--text-2)' }}>ambulance</strong> is the physical vehicle (identified by plate number). A <strong style={{ color: 'var(--text-2)' }}>driver</strong> is the person who operates it. Assigning a driver to an ambulance links them so the driver can accept calls and the hospital tracks that vehicle.</span>
                 </div>
 
                 {fleetLoading ? (
                   <div style={{ textAlign: 'center', padding: '30px' }}><span className="spinner" /></div>
                 ) : ambulances.length === 0 ? (
                   <div className="card text-center" style={{ padding: 30 }}>
+                    <AmbulanceIcon size={36} style={{ color: 'var(--text-3)', margin: '0 auto 8px' }} />
                     <p style={{ color: 'var(--text-3)' }}>No ambulances registered yet.</p>
                   </div>
                 ) : (
@@ -384,22 +395,32 @@ export default function HospitalIncomingPage() {
                     <div key={amb.id} className="card card--compact" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <AmbulanceIcon size={20} style={{ color: 'var(--primary-light)' }} />
-                          <strong style={{ fontSize: '1.05rem' }}>{amb.plateNumber}</strong>
+                          <div style={{ width: 36, height: 36, borderRadius: 8, background: 'var(--primary-glow)', color: 'var(--primary-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            <AmbulanceIcon size={18} />
+                          </div>
+                          <div>
+                            <strong style={{ fontSize: '0.95rem', display: 'block' }}>{amb.plateNumber}</strong>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-3)' }}>{amb.ambulanceType || 'Standard'} · Level {amb.equipmentLevel || 1}</span>
+                          </div>
                         </div>
+                        <span className={`badge badge--${amb.status}`} style={{ textTransform: 'capitalize', fontSize: '0.7rem' }}>{amb.status}</span>
                       </div>
 
-                      <div className="grid-2" style={{ gap: 8, fontSize: '0.8rem' }}>
-                        <div>
-                          <span style={{ color: 'var(--text-3)' }}>Driver:</span>{' '}
-                          <button onClick={() => setAssigningAmbulance(amb)} className="btn btn--ghost btn--xs" style={{ padding: '2px 4px', fontSize: '0.8rem', fontWeight: 600 }}>
-                            {amb.driver ? `👤 ${amb.driver.name}` : 'Assign Driver'}
-                          </button>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 10px', background: 'var(--bg-2)', borderRadius: 'var(--r-md)', gap: 8 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.8rem' }}>
+                          <UserIcon size={13} style={{ color: amb.driver ? 'var(--green-light)' : 'var(--text-3)' }} />
+                          {amb.driver ? (
+                            <span style={{ color: 'var(--text-2)', fontWeight: 600 }}>{amb.driver.name}</span>
+                          ) : (
+                            <span style={{ color: 'var(--text-3)', fontStyle: 'italic' }}>No driver assigned</span>
+                          )}
                         </div>
-                        <div>
-                          <span style={{ color: 'var(--text-3)' }}>Status:</span>{' '}
-                          <span className={`badge badge--${amb.status}`} style={{ textTransform: 'capitalize' }}>{amb.status}</span>
-                        </div>
+                        <button onClick={() => setAssigningAmbulance(amb)}
+                          className="btn btn--ghost btn--xs"
+                          style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.75rem', padding: '4px 8px' }}>
+                          <LinkIcon size={11} />
+                          {amb.driver ? 'Change' : 'Assign Driver'}
+                        </button>
                       </div>
                     </div>
                   ))
@@ -409,28 +430,45 @@ export default function HospitalIncomingPage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <h4 style={{ margin: 0 }}>Hospital Drivers</h4>
-                  <button onClick={() => setShowAddDriver(true)} className="btn btn--primary btn--sm">+ Register Driver</button>
+                  <button onClick={() => setShowAddDriver(true)} className="btn btn--primary btn--sm" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <UserIcon size={13} /> Register Driver
+                  </button>
                 </div>
 
                 {fleetLoading ? (
                   <div style={{ textAlign: 'center', padding: '30px' }}><span className="spinner" /></div>
                 ) : drivers.length === 0 ? (
                   <div className="card text-center" style={{ padding: 30 }}>
+                    <UserIcon size={36} style={{ color: 'var(--text-3)', margin: '0 auto 8px' }} />
                     <p style={{ color: 'var(--text-3)' }}>No drivers registered yet.</p>
+                    <p style={{ fontSize: '0.8rem', color: 'var(--text-3)' }}>Register a driver first, then assign them to an ambulance.</p>
                   </div>
                 ) : (
-                  drivers.map((drv: any) => (
-                    <div key={drv.id} className="card card--compact" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                      <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--primary-glow)', color: 'var(--primary-light)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <UserIcon size={16} />
+                  drivers.map((drv: any) => {
+                    const assignedAmb = ambulances.find((a: any) => a.driver?.id === drv.id);
+                    return (
+                      <div key={drv.id} className="card card--compact" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                          <div style={{ width: 38, height: 38, borderRadius: '50%', background: 'var(--primary-glow)', color: 'var(--primary-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            <UserIcon size={17} />
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <strong style={{ fontSize: '0.9rem', display: 'block' }}>{drv.name}</strong>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.75rem', color: 'var(--text-3)' }}>
+                              <PhoneIcon size={11} /> {drv.phone || 'No phone'}
+                            </div>
+                          </div>
+                          {assignedAmb ? (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.75rem', fontWeight: 600, color: 'var(--green-light)', background: 'var(--green-bg)', padding: '3px 8px', borderRadius: 'var(--r-full)', flexShrink: 0 }}>
+                              <AmbulanceIcon size={11} /> {assignedAmb.plateNumber}
+                            </div>
+                          ) : (
+                            <span style={{ fontSize: '0.75rem', color: 'var(--amber-light)', background: 'var(--amber-bg)', padding: '3px 8px', borderRadius: 'var(--r-full)', flexShrink: 0 }}>Unassigned</span>
+                          )}
+                        </div>
                       </div>
-                      <div style={{ flex: 1 }}>
-                        <strong style={{ fontSize: '0.9rem' }}>{drv.name}</strong>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-3)' }}>✉ {drv.email}</div>
-                      </div>
-                      {drv.phone && <div style={{ fontSize: '0.8rem', color: 'var(--text-2)' }}>{drv.phone}</div>}
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             )}
@@ -517,8 +555,8 @@ export default function HospitalIncomingPage() {
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 250, overflowY: 'auto' }}>
               <button onClick={() => handleAssignDriver(null)}
-                style={{ padding: '10px 14px', background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: 'var(--r-md)', textAlign: 'left', cursor: 'pointer', fontWeight: 600, color: 'var(--crimson-light)' }}>
-                ✕ Unassign Driver
+                style={{ padding: '10px 14px', background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: 'var(--r-md)', textAlign: 'left', cursor: 'pointer', fontWeight: 600, color: 'var(--crimson-light)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <XCircleIcon size={14} /> Unassign Driver
               </button>
               {drivers.map(drv => (
                 <button key={drv.id} onClick={() => handleAssignDriver(drv.id)}
