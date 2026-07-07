@@ -71,6 +71,7 @@ app.use(
     standardHeaders: true,
     legacyHeaders: false,
     keyGenerator: (req) => req.ip || 'unknown',
+    skip: () => config.disableRateLimit,
     message: { success: false, message: 'Too many requests, please try again later.' },
   })
 );
@@ -80,6 +81,7 @@ const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: isProd ? 15 : 1000, // 1000 auth attempts per 15 min in dev
   skipSuccessfulRequests: true,
+  skip: () => config.disableRateLimit,
   message: { success: false, message: 'Too many auth attempts. Please wait 15 minutes.' },
 });
 app.use('/api/auth/login', authLimiter);
@@ -91,6 +93,7 @@ app.use(
   rateLimit({
     windowMs: 60 * 1000,
     max: 10,
+    skip: () => config.disableRateLimit,
     message: { success: false, message: 'SOS rate limit exceeded.' },
   })
 );

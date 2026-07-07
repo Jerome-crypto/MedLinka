@@ -116,3 +116,5 @@ export const SosIcon = ({ size = 20, className, style }: IconProps) => (
 );
 export const UserCircleIcon = ico('M12 22c5.52 0 10-4.48 10-10S17.52 2 12 2 2 6.48 2 12s4.48 10 10 10zM12 13a4 4 0 100-8 4 4 0 000 8zM4.5 19.5a8 8 0 0115 0');
 export const LinkIcon = ico('M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71');
+export const EditIcon = ico('M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z');
+export const TrashIcon = ico('M3 6h18M8 6V4h8v2M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6M10 11v6M14 11v6');
